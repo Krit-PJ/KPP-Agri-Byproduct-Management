@@ -574,3 +574,14 @@ body.ggh-landing-on > nav > .container { max-width: 84rem; }
   .ggh-topcard .ggh-scope { padding: .8rem 1.35rem 0; }
   .ggh-topcard .ggh-scope .ggh-tabs { margin: 0 -1.35rem; padding: 0 .85rem; }
 }
+
+/* ABM 1.0.0 (from Green Gain Hub 2.5.0 market.css): the link to the Green Gain Hub market next to the unchanged staff sign-in */
+.ggh-entry.ggh-entry-perf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ggh-entry .ggh-entry-back { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "icon name" "icon hint"; align-items: center; column-gap: .6rem;
+  min-height: 56px; padding: .55rem .8rem; border-radius: 10px; border: 1px solid var(--ggh-line); background: #fff; color: #44524a; text-decoration: none; font-weight: 700; }
+.ggh-entry .ggh-entry-back i { grid-area: icon; }
+.ggh-entry .ggh-entry-back:hover { background: var(--ggh-zero); }
+@media (max-width: 639px) {
+  .ggh-entry .ggh-entry-back { grid-template-columns: minmax(0, 1fr); grid-template-areas: "icon" "name"; justify-items: center; text-align: center; padding: .5rem .3rem; }
+  .ggh-entry .ggh-entry-back .ggh-entry-hint { display: none; }
+}
