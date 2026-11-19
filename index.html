@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14532d">
+  <meta name="description" content="ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร จังหวัดกำแพงเพชร (Agri By-product Management): ผลการจัดการวัสดุเหลือใช้ทางการเกษตรเทียบเป้าหมายรายอำเภอ ก๊าซเรือนกระจกที่ลดได้ มูลค่า การเพาะปลูก และตลาด สำหรับผู้บริหารและเจ้าหน้าที่">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร · กำแพงเพชร</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="assets/dashboard.css?v=1.0.0">
+
+  <style>
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; overflow-x: hidden; overscroll-behavior-y: none; padding-bottom: env(safe-area-inset-bottom); }
+    .hidden { display: none !important; }
+    .input-group { position: relative; margin-bottom: 1rem; }
+    .input-field { width: 100%; min-width: 0; min-height: 48px; padding: 0.75rem; border-radius: 0.625rem; border: 1px solid #d1d5db; background-color: #fff; font-size: 16px; transition: all 0.2s; }
+    .input-field:focus { border-color: #16a34a; outline: none; box-shadow: 0 0 0 2px rgba(22,163,74,0.2); }
+    .label-text { font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem; display: block; }
+    .required-mark { color: #ef4444; }
+    button, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    button { min-height: 44px; }
+    .leaflet-control-zoom a { width: 42px !important; height: 42px !important; line-height: 42px !important; font-size: 22px !important; }
+    .leaflet-popup-content { margin: 12px 14px; min-width: 190px; font-family: 'Sarabun', sans-serif; line-height: 1.45; }
+    
+    
+    button:disabled { cursor: not-allowed; opacity: 0.7; }
+
+    @media (min-width: 640px) {
+    }
+
+    @media (max-width: 639px) {
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="bg-white shadow-md fixed top-0 w-full z-50 border-b border-green-100">
+    <div class="container mx-auto px-3 sm:px-4 py-2 flex justify-between items-center gap-2 max-w-5xl" style="padding-top: max(.5rem, env(safe-area-inset-top));">
+      <img src="https://doaenews.doae.go.th/wp-content/uploads/2021/03/DOAE-2.png" class="h-8 sm:h-10 w-auto shrink-0" alt="กรมส่งเสริมการเกษตร">
+      <div class="text-center min-w-0">
+        <h1 class="ggh-topbar-title text-green-800 font-bold leading-tight">ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร</h1>
+        <p class="ggh-topbar-sub">จังหวัด<span data-province>กำแพงเพชร</span> · Agri By-product Management</p>
+      </div>
+      <img src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Seal_of_Kamphaeng_Phet_Province_%28color_version%2C_Thai_Fine_Art_Department%29.png" class="h-8 sm:h-10 w-auto shrink-0" alt="ตราจังหวัดกำแพงเพชร">
+    </div>
+  </nav>
+
+  <main class="flex-grow pt-20 sm:pt-24 pb-10 sm:pb-12 px-3 sm:px-4 container mx-auto max-w-5xl">
+
+    <div id="dashPage" class="ggh-landing" data-tab="overview">
+      <!-- ABM 1.0.0: the executive dashboard (moved from Green Gain Hub 2.5.0 #performance); staff sign-in unchanged. -->
+      <div class="ggh-topcard">
+      <header class="ggh-hero">
+        <div class="ggh-hero-text">
+          <p class="ggh-hero-lede">ผลการดำเนินงานลดการเผา</p>
+          <p class="ggh-hero-sub">ผลการจัดการวัสดุเหลือใช้ทางการเกษตรเทียบเป้าหมาย การเพาะปลูก และตลาดจาก Green Gain Hub เปิดดูได้โดยไม่ต้องเข้าสู่ระบบ เจ้าหน้าที่เข้าสู่ระบบเพื่อบันทึกผลและออกรายงาน</p>
+        </div>
+        <nav class="ggh-entry ggh-entry-perf" aria-label="เจ้าหน้าที่">
+          <a href="https://krit-pj.github.io/Green_Gain_Hub-KPP/" class="ggh-entry-back" data-ggh-link rel="noopener"><i class="fa-solid fa-store" aria-hidden="true"></i><span class="ggh-entry-name">ตลาดวัสดุ Green Gain Hub</span><span class="ggh-entry-hint">สำหรับเกษตรกรและผู้รับซื้อ</span></a>
+          <button type="button" data-door="staff" class="ggh-entry-staff"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span class="ggh-entry-name">เข้าสู่ระบบเจ้าหน้าที่</span><span class="ggh-entry-hint">บันทึกและติดตามผลรายอำเภอ</span></button>
+        </nav>
+      </header>
+
+      <section class="ggh-scope" aria-labelledby="scopeTitle">
+        <div class="ggh-scope-head">
+          <h2 id="scopeTitle" class="ggh-scope-title">ข้อมูลจังหวัด<span data-province>กำแพงเพชร</span></h2>
+          <p class="ggh-scope-meta"><span data-tabs="overview"><small id="resFyRange"></small><span aria-hidden="true"> · </span></span><span class="ggh-updated" id="dashUpdated" aria-live="polite">กำลังโหลดข้อมูล…</span></p>
+        </div>
+        <div class="ggh-scope-controls">
+          <label class="ggh-scope-field" data-tabs="overview">ปีงบประมาณ
+            <select id="resFy"></select>
+          </label>
+          <label class="ggh-scope-field">อำเภอ
+            <select id="dashDistrictSel"><option value="">ทุกอำเภอ</option></select>
+          </label>
+        </div>
+        <nav class="ggh-tabs" role="tablist" aria-label="เลือกมุมมองข้อมูล">
+          <button type="button" role="tab" id="tab-overview" aria-controls="dashPage" aria-selected="true" data-tab="overview">ผลการจัดการ</button>
+          <button type="button" role="tab" id="tab-crops" aria-controls="dashPage" aria-selected="false" data-tab="crops">การเพาะปลูก</button>
+          <button type="button" role="tab" id="tab-market" aria-controls="dashPage" aria-selected="false" data-tab="market">ตลาด</button>
+        </nav>
+      </section>
+      </div>
+
+      <section class="ggh-toolbar ggh-cropcards-wrap" data-tabs="crops" aria-label="ตัวเลือกข้อมูลเพาะปลูก">
+        <div class="ggh-crop-chips" id="dashCropChips" role="radiogroup" aria-label="ชนิดพืช"></div>
+        <label class="ggh-asof">ข้อมูล ณ สิ้นเดือน
+          <select id="dashAsOf"></select>
+        </label>
+      </section>
+
+      <section class="ggh-kpis-wrap" aria-label="ตัวเลขสรุป">
+        <p class="ggh-cards-context" id="dashKpiMeta"></p>
+        <div class="ggh-cards" id="dashKpis"></div>
+      </section>
+
+      <section class="ggh-mapcard" aria-label="แผนที่รายอำเภอ">
+        <p class="ggh-ci-caption" data-tabs="overview">ก๊าซเรือนกระจกที่ลดได้ รายพืช (ตันคาร์บอนไดออกไซด์เทียบเท่า)</p>
+        <div class="ggh-cropicons" id="resCropIcons" data-tabs="overview" role="radiogroup" aria-label="เลือกชนิดพืชเพื่อดูปริมาณ ก๊าซเรือนกระจกที่ลดได้"></div>
+        <div class="ggh-mapbar">
+          <div class="ggh-metric" id="dashMetrics" role="radiogroup" aria-label="ระบายสีแผนที่ตาม"></div>
+        </div>
+        <div id="dashMap" class="ggh-map" role="img" aria-label="แผนที่จังหวัดกำแพงเพชร ระบายสีตามข้อมูลรายอำเภอ"></div>
+        <div class="ggh-legend" id="dashLegend" aria-hidden="true"></div>
+        <p class="ggh-note" id="dashSourceNote"></p>
+      </section>
+
+      <aside class="ggh-side">
+        <div class="ggh-district" id="dashDistrict" aria-live="polite">
+          <p class="ggh-district-empty">เลือกอำเภอบนแผนที่ หรือค้นหาชื่ออำเภอ เพื่อดูรายละเอียด</p>
+        </div>
+      </aside>
+
+      <section class="ggh-panel ggh-balance hidden" id="resBalanceWrap" data-tabs="overview" aria-labelledby="resBalanceTitle">
+        <h3 id="resBalanceTitle" class="ggh-panel-title">วัสดุเหลือใช้ทางการเกษตรที่จัดการได้ เทียบกับพื้นที่เก็บเกี่ยว</h3>
+        <p class="ggh-panel-sub" id="resBalanceSub"></p>
+        <div id="resBalance"></div>
+      </section>
+
+      <section class="ggh-panel ggh-resmethods" data-tabs="overview" aria-labelledby="resMethodsTitle">
+        <h3 id="resMethodsTitle" class="ggh-panel-title">พื้นที่จัดการวัสดุเหลือใช้ทางการเกษตร แยกตามประเภท</h3>
+        <p class="ggh-panel-sub" id="resMethodsSub"></p>
+        <div class="ggh-methods" id="resMethods"></div>
+      </section>
+
+      <section class="ggh-panel ggh-cropmonths" data-tabs="crops" aria-labelledby="dashCropMonthsTitle">
+        <h3 id="dashCropMonthsTitle" class="ggh-panel-title">พื้นที่เก็บเกี่ยวรายเดือน</h3>
+        <p class="ggh-panel-sub" id="dashCropMonthsSub"></p>
+        <div id="dashCropMonths" class="ggh-columns ggh-columns-crop"></div>
+      </section>
+
+      <section class="ggh-panel ggh-cropstack" data-tabs="crops" aria-labelledby="dashCropStackTitle">
+        <h3 id="dashCropStackTitle" class="ggh-panel-title">เก็บเกี่ยวแล้ว และคงเหลือ</h3>
+        <p class="ggh-panel-sub">แต่ละแท่งคือพื้นที่ปลูกทั้งหมด แบ่งเป็นส่วนที่เก็บเกี่ยวแล้วถึงสิ้นเดือนนั้น กับส่วนที่ยังคงเหลือ</p>
+        <div id="dashCropStack" class="ggh-columns ggh-columns-stack"></div>
+      </section>
+
+      <section class="ggh-panel ggh-harvest" data-tabs="market" aria-labelledby="dashHarvestTitle">
+        <h3 id="dashHarvestTitle" class="ggh-panel-title">ปฏิทินเก็บเกี่ยวของแปลงพร้อมขาย</h3>
+        <p class="ggh-panel-sub">พื้นที่ (ไร่) ของแปลงที่ลงทะเบียนใน Green Gain Hub ตามเดือนที่คาดว่าจะเก็บเกี่ยว</p>
+        <div id="dashHarvest" class="ggh-columns"></div>
+      </section>
+
+      <section class="ggh-panel ggh-materials" data-tabs="market" aria-labelledby="dashMaterialTitle">
+        <h3 id="dashMaterialTitle" class="ggh-panel-title">ตามชนิดวัสดุเหลือใช้ทางการเกษตร</h3>
+        <p class="ggh-panel-sub">พื้นที่แปลงพร้อมขาย และจำนวนจุดรับซื้อของวัสดุแต่ละชนิด</p>
+        <div id="dashMaterials" class="ggh-bars"></div>
+        <p class="ggh-footnote" id="dashResidueNote"></p>
+      </section>
+
+      <section class="ggh-panel ggh-table" data-tabs="overview crops market" aria-labelledby="dashTableTitle">
+        <h3 id="dashTableTitle" class="ggh-panel-title">รายอำเภอ</h3>
+        <p class="ggh-panel-sub" id="dashTableSub">เลือกแถวเพื่อดูอำเภอนั้นบนแผนที่</p>
+        <div class="ggh-table-wrap">
+          <table>
+            <thead id="dashTableHead"></thead>
+            <tbody id="dashTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 2.3.0: district weekly reports (KPP Smart Agri-Materials), formerly their own tab; kept apart from the records above. -->
+      <section class="ggh-panel ggh-sar" id="sarWrap" data-tabs="overview" aria-labelledby="sarTitle">
+        <h3 id="sarTitle" class="ggh-panel-title">รายงานประจำสัปดาห์จากอำเภอ</h3>
+        <p class="ggh-panel-sub" id="sarSub">ระบบรายงานการจัดการ KPP Smart Agri-Materials</p>
+        <div class="ggh-sar-kpis" id="sarKpis"></div>
+        <div id="dashTrendWrap">
+          <p class="ggh-sar-chart-title">ไถกลบตอซัง/ใช้สารย่อยสลาย สะสมรายครั้ง (ไร่ ทั้งจังหวัด)</p>
+          <div id="dashTrend" class="ggh-columns ggh-columns-trend"></div>
+        </div>
+        <div class="ggh-table-wrap">
+          <table>
+            <thead id="sarHead"></thead>
+            <tbody id="sarBody"></tbody>
+          </table>
+        </div>
+        <p class="ggh-footnote">ตัวเลขชุดนี้เป็นยอดที่อำเภอรายงานเป็นรอบ แยกจากพื้นที่ที่เจ้าหน้าที่บันทึกรายแปลงในระบบนี้ (ด้านบน) จึงอาจไม่เท่ากัน</p>
+      </section>
+
+      <section class="ggh-panel ggh-howto" data-tabs="overview" aria-label="วิธีคำนวณและแหล่งข้อมูล">
+        <details id="resMethodNote">
+          <summary>วิธีคำนวณและแหล่งข้อมูล</summary>
+          <div id="resNote"></div>
+        </details>
+      </section>
+
+      <section class="ggh-panel ggh-goals hidden" id="dashGoalsWrap" data-tabs="market" aria-labelledby="dashGoalsTitle">
+        <h3 id="dashGoalsTitle" class="ggh-panel-title">เป้าหมายโครงการ</h3>
+        <ul id="dashGoals" class="ggh-goal-list"></ul>
+      </section>
+
+      <div class="ggh-tooltip" id="dashTooltip" role="tooltip" hidden></div>
+    </div>
+
+    <dialog class="ggh-dialog" id="staffAuth" aria-labelledby="staffAuthTitle">
+      <div class="ggh-dialog-box">
+        <header class="ggh-dialog-head is-staff">
+          <div>
+            <p class="ggh-dialog-kicker">สำหรับเจ้าหน้าที่</p>
+            <h2 id="staffAuthTitle">บันทึกการจัดการ ภาพรวม และรายงาน</h2>
+          </div>
+          <button type="button" class="ggh-dialog-close" data-close aria-label="ปิดหน้าต่าง">✕</button>
+        </header>
+        <div class="ggh-dtabs" role="tablist" aria-label="เข้าสู่ระบบหรือลงทะเบียนเจ้าหน้าที่">
+          <button type="button" role="tab" id="staffTabLogin" data-stafftab="login" aria-selected="true" aria-controls="staffPanelLogin">เข้าสู่ระบบ</button>
+          <button type="button" role="tab" id="staffTabRegister" data-stafftab="register" aria-selected="false" aria-controls="staffPanelRegister">ลงทะเบียนเจ้าหน้าที่</button>
+        </div>
+        <form class="ggh-dpanel" id="staffPanelLogin" data-staffpanel="login" role="tabpanel" aria-labelledby="staffTabLogin" novalidate>
+          <label class="label-text" for="staffPhone">หมายเลขโทรศัพท์ที่ลงทะเบียนไว้</label>
+          <input type="tel" id="staffPhone" name="phone" class="input-field text-lg tracking-widest text-center font-bold" placeholder="08XXXXXXXX" maxlength="12" inputmode="numeric" autocomplete="tel">
+          <div class="ggh-dmsg" id="staffLoginMsg" role="alert"></div>
+          <p class="ggh-dmuted">ใช้หมายเลขเดียวกับที่ลงทะเบียนไว้ใน Agri-Risk Map หรือ Smart Agri ได้ (ตัวตนกลาง)</p>
+          <button type="submit" class="ggh-dbtn" id="staffLoginBtn">เข้าสู่ระบบ</button>
+          <p class="ggh-dswitch">ยังไม่มีบัญชี? <button type="button" data-stafftab="register">ลงทะเบียนเจ้าหน้าที่</button></p>
+        </form>
+        <form class="ggh-dpanel hidden" id="staffPanelRegister" data-staffpanel="register" role="tabpanel" aria-labelledby="staffTabRegister" novalidate>
+          <label class="label-text" for="sregName">ชื่อ-สกุล</label>
+          <input id="sregName" name="name" class="input-field" maxlength="120" autocomplete="name">
+          <label class="label-text" for="sregPhone">หมายเลขโทรศัพท์</label>
+          <input id="sregPhone" name="phone" type="tel" class="input-field" inputmode="numeric" maxlength="12" autocomplete="tel" placeholder="08XXXXXXXX">
+          <label class="label-text" for="sregOffice">หน่วยงาน</label>
+          <select id="sregOffice" name="officeType" class="input-field"><option value="">กำลังโหลด…</option></select>
+          <label class="ggh-reg-field hidden" data-reg="group"><span class="label-text">กลุ่ม</span><select name="group" class="input-field"></select></label>
+          <label class="ggh-reg-field" data-reg="district"><span class="label-text">อำเภอ</span><select name="district" class="input-field"></select></label>
+          <label class="label-text" for="sregProvince">จังหวัด <span class="ggh-dmuted">(พิมพ์เพื่อค้นหา)</span></label>
+          <input id="sregProvince" name="province" list="sregProvinces" class="input-field" autocomplete="off">
+          <datalist id="sregProvinces"></datalist>
+          <p class="ggh-dmuted">ข้อมูลนี้ใช้ระบุตัวผู้บันทึกข้อมูลในระบบและรายงานของหน่วยงานเท่านั้น</p>
+          <div class="ggh-dmsg" id="staffRegMsg" role="alert"></div>
+          <button type="submit" class="ggh-dbtn" id="staffRegBtn">ลงทะเบียนและเข้าใช้งาน</button>
+        </form>
+        <p class="ggh-dfoot">Super Admin / Mini Super Admin <a href="admin.html#admin">เข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่าน</a></p>
+      </div>
+    </dialog>
+  </main>
+
+  <footer class="bg-green-900 text-white text-center py-6 mt-auto">
+    <div class="container mx-auto px-4">
+      <p class="text-xs md:text-sm opacity-90 mb-2">ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร จังหวัดกำแพงเพชร (Agri By-product Management) · ตลาดสำหรับเกษตรกรและผู้รับซื้อ: <a class="underline" href="https://krit-pj.github.io/Green_Gain_Hub-KPP/" data-ggh-link>Green Gain Hub</a></p>
+      <h4 class="font-bold text-sm md:text-base mb-1">สำนักงานเกษตรจังหวัดกำแพงเพชร</h4>
+      <p class="text-xs md:text-sm opacity-80 mb-3">กรมส่งเสริมการเกษตร กระทรวงเกษตรและสหกรณ์</p>
+      <p class="ggh-counter" id="visitCounter" aria-live="polite" hidden>
+        <span>ผู้เข้าชม</span>
+        <span>วันนี้ <b data-visit="today">–</b></span><span aria-hidden="true">·</span>
+        <span>เดือนนี้ <b data-visit="month">–</b></span><span aria-hidden="true">·</span>
+        <span>ทั้งหมด <b data-visit="total">–</b></span>
+      </p>
+      <div class="border-t border-green-700 pt-3 text-[11px] md:text-xs text-green-300 opacity-80">
+         Copyright © 2026 กรมส่งเสริมการเกษตร (พัฒนาโดย ดร. กิตติ โพธิ์จวง)
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/config.js?v=1.0.0"></script>
+  <script src="https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js"></script>
+  <script src="assets/sso-client.js?v=1.0.0"></script>
+  <script src="assets/staff-auth.js?v=1.0.0"></script>
+  <script src="assets/dashboard.js?v=1.0.0" defer></script>
+  <script>
+    /* ABM 1.0.0 — homepage: executive dashboard (dashboard.js) + officer sign-in popup (unchanged from Green Gain Hub 2.4.2).
+       Farmers and buyers use Green Gain Hub; the market link comes from ABM_CONFIG.GGH_URL. */
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[ch]);
+    }
+    (function marketLinks() {
+      const u = window.ABM_CONFIG && window.ABM_CONFIG.GGH_URL;
+      if (u) document.querySelectorAll('[data-ggh-link]').forEach((a) => { a.href = u; });
+    })();
+
+    const AUTH = { opener: null };
+    function setMsg(id, html, kind) {
+      const el = document.getElementById(id);
+      el.innerHTML = html || '';
+      el.className = 'ggh-dmsg' + (html ? ' is-' + (kind || 'error') : '');
+    }
+    function openDialog(id, opener) {
+      const dlg = document.getElementById(id);
+      AUTH.opener = opener || document.activeElement;
+      if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
+      return dlg;
+    }
+    function closeDialog(dlg) { if (dlg.open) { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); } }
+    document.querySelectorAll('.ggh-dialog').forEach((dlg) => {
+      dlg.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => closeDialog(dlg)));
+      // A tap on the dimmed background closes the popup (the box itself fills the dialog element).
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) closeDialog(dlg); });
+      dlg.addEventListener('close', () => { const o = AUTH.opener; AUTH.opener = null; if (o && document.contains(o) && o.focus) o.focus(); });
+    });
+    function selectTab(dlg, attr, tab) {
+      dlg.querySelectorAll(`[role="tab"][data-${attr}tab]`).forEach((b) => { const on = b.dataset[attr + 'tab'] === tab; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+      dlg.querySelectorAll(`[data-${attr}panel]`).forEach((p) => p.classList.toggle('hidden', p.dataset[attr + 'panel'] !== tab));
+      const first = dlg.querySelector(`[data-${attr}panel="${tab}"] input:not([type="radio"]):not([type="checkbox"])`);
+      if (first) setTimeout(() => first.focus(), 30);
+    }
+    function wireTabs(dlgId, attr, onSwitch) {
+      const dlg = document.getElementById(dlgId);
+      dlg.querySelectorAll(`[data-${attr}tab]`).forEach((b) => b.addEventListener('click', () => { selectTab(dlg, attr, b.dataset[attr + 'tab']); if (onSwitch) onSwitch(b.dataset[attr + 'tab']); }));
+      const tabs = [...dlg.querySelectorAll(`[role="tab"][data-${attr}tab]`)];
+      tabs.forEach((b, i) => b.addEventListener('keydown', (e) => {
+        const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (!d) return;
+        e.preventDefault(); const n = tabs[(i + d + tabs.length) % tabs.length]; n.click(); n.focus();
+      }));
+    }
+    wireTabs('staffAuth', 'staff', (tab) => { if (tab === 'register') prepareStaffRegister(); });
+
+    function openStaff(tab, phone, opener) {
+      if (window.ABM_SSO) window.ABM_SSO.warm();
+      // An officer who is still signed in goes straight to the officer pages.
+      if (!phone && window.ABM_STAFF && window.ABM_STAFF.hasSession()) { location.href = 'admin.html'; return; }
+      const dlg = openDialog('staffAuth', opener);
+      if (phone) document.getElementById('staffPhone').value = phone;
+      setMsg('staffLoginMsg', ''); setMsg('staffRegMsg', '');
+      selectTab(dlg, 'staff', tab || 'login');
+      if (tab === 'register') prepareStaffRegister();
+    }
+    function prepareStaffRegister() {
+      window.ABM_STAFF.prepareRegister(document.getElementById('staffPanelRegister'), 'sregProvinces')
+        .catch((err) => setMsg('staffRegMsg', escapeHtml(err.message)));
+    }
+    document.querySelectorAll('[data-door="staff"]').forEach((b) => {
+      b.addEventListener('click', () => openStaff('login', '', b));
+      // wake the servers as soon as the door is approached, so sign-in does not wait for a cold start
+      ['pointerenter', 'focus', 'touchstart'].forEach((ev) => b.addEventListener(ev, () => { if (window.ABM_SSO) window.ABM_SSO.warm(); }, { passive: true }));
+    });
+    // The fixed top bar grows when its title wraps (small phones); keep the page clear of it.
+    (function keepClearOfTopBar() {
+      const bar = document.querySelector('body > nav'), main = document.querySelector('body > main');
+      if (!bar || !main) return;
+      const fit = () => { main.style.paddingTop = Math.ceil(bar.getBoundingClientRect().height + 16) + 'px'; };
+      fit();
+      if (window.ResizeObserver) new ResizeObserver(fit).observe(bar); else window.addEventListener('resize', fit);
+    })();
+    // Shareable links (e.g. in LINE): #staff, #staff-register. Read before the dashboard rewrites the hash.
+    (function openFromHash() {
+      const h = decodeURIComponent((location.hash || '').slice(1));
+      if (h === 'staff' || h === 'staff-register') { setTimeout(() => openStaff(h === 'staff' ? 'login' : 'register'), 0); history.replaceState(null, '', location.pathname + location.search); }
+    })();
+
+    // --- Officers: shared logic in assets/staff-auth.js; on success go to the officer pages. ---
+    document.getElementById('staffPanelLogin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('staffLoginBtn'), phone = window.ABM_STAFF.digits(e.target.phone.value);
+      btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ…'; setMsg('staffLoginMsg', '');
+      try { await window.ABM_STAFF.login(phone); location.href = 'admin.html'; }
+      catch (err) {
+        const msg = String(err.message || '');
+        if (/ลงทะเบียน/.test(msg)) {
+          setMsg('staffLoginMsg', `${escapeHtml(msg)}<br><button type="button" class="ggh-dlink" data-to-sreg>ลงทะเบียนเจ้าหน้าที่</button>`);
+          document.querySelector('#staffLoginMsg [data-to-sreg]').addEventListener('click', () => { document.getElementById('staffPanelRegister').phone.value = phone; selectTab(document.getElementById('staffAuth'), 'staff', 'register'); prepareStaffRegister(); });
+        } else setMsg('staffLoginMsg', escapeHtml(msg));
+      } finally { btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ'; }
+    });
+    document.getElementById('staffPanelRegister').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const { input, missing } = window.ABM_STAFF.readRegister(e.target);
+      if (missing.length) return setMsg('staffRegMsg', 'กรุณากรอก: ' + escapeHtml(missing.join(', ')));
+      const btn = document.getElementById('staffRegBtn');
+      btn.disabled = true; btn.textContent = 'กำลังลงทะเบียน…'; setMsg('staffRegMsg', '');
+      try { await window.ABM_STAFF.register(input); location.href = 'admin.html'; }
+      catch (err) { setMsg('staffRegMsg', escapeHtml(err.message)); }
+      finally { btn.disabled = false; btn.textContent = 'ลงทะเบียนและเข้าใช้งาน'; }
+    });
+  </script>
+</body>
+</html>
