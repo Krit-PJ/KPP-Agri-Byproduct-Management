@@ -33,7 +33,7 @@ tests/                       node tests/<file>.test.js (ไม่ต้องต
 docs/GHG_ENGINE.md           สูตรก๊าซเรือนกระจก
 ```
 
-GitHub Pages deploy จากโฟลเดอร์ `frontend/` อัตโนมัติเมื่อ push เข้า `main` (`.github/workflows/deploy-pages.yml`)
+GitHub Pages: โฟลเดอร์ `frontend/` คือต้นฉบับ และคัดลอกไว้ที่ราก repo ด้วย (`cp -r frontend/index.html frontend/admin.html frontend/assets .`) จึงใช้ได้ทั้ง Source แบบ GitHub Actions (`.github/workflows/deploy-pages.yml`) และ Deploy from a branch — `tests/pages-root.test.js` ตรวจว่าตรงกัน
 
 ## การเข้าสู่ระบบ (คงเดิมจาก Green Gain Hub 2.4.x)
 
