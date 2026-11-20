@@ -321,15 +321,18 @@ const REPORT_BUILDERS = {
   },
   'market.plots': function (ctx) {
     const districts = districtList_();
+    const hidden = gghHiddenPlots_();   // 1.1.0: is the plot on the market today?
+    const why = { no_harvest: 'ไม่แสดง (ไม่มีวันเก็บเกี่ยว)', after_harvest: 'ไม่แสดง (เลยวันเก็บเกี่ยวเกินกำหนด)' };
     const rows = gghRows_('farmers').filter(function (r) { return String(r[11] || '').trim().toLowerCase() === 'open'; }).map(function (r) {
       const d = hasCoordinates_(r[9], r[10]) ? districtForPoint_(Number(r[9]), Number(r[10]), districts) : null;
-      return { district: d ? d.name : 'ไม่ระบุ', name: (text_(r[2]) + ' ' + text_(r[3])).trim(), phone: ctx.unmask ? fullPhone_(r[4]) : maskPhone_(r[4]),
+      const h = hidden[text_(r[0])];
+      return { onMarket: h ? (why[h] || 'ไม่แสดง') : 'แสดง', district: d ? d.name : 'ไม่ระบุ', name: (text_(r[2]) + ' ' + text_(r[3])).trim(), phone: ctx.unmask ? fullPhone_(r[4]) : maskPhone_(r[4]),
         crop: text_(r[5]), material: resolvedMaterial_(r[13], r[14], r[5]), area: text_(r[8]), areaRai: round_(parseAreaRai_(r[8]), 2),
         harvest: dateInput_(r[7]), lat: maybeNumber_(r[9]), lng: maybeNumber_(r[10]) };
     }).sort(function (a, b) { return a.district.localeCompare(b.district, 'th') || (a.harvest < b.harvest ? -1 : 1); });
     return {
       columns: [col_('district', 'อำเภอ'), col_('name', 'ชื่อ-สกุล'), col_('phone', 'โทรศัพท์'), col_('crop', 'พืช'), col_('material', 'วัสดุเหลือใช้ทางการเกษตร'),
-        col_('area', 'พื้นที่'), col_('areaRai', 'ไร่', 'number'), col_('harvest', 'วันเก็บเกี่ยว'), col_('lat', 'ละติจูด', 'number', true), col_('lng', 'ลองจิจูด', 'number', true)],
+        col_('area', 'พื้นที่'), col_('areaRai', 'ไร่', 'number'), col_('harvest', 'วันเก็บเกี่ยว'), col_('onMarket', 'บนตลาด GGH'), col_('lat', 'ละติจูด', 'number', true), col_('lng', 'ลองจิจูด', 'number', true)],
       rows: rows,
       notes: ['ข้อมูลส่วนบุคคล ใช้ตามวัตถุประสงค์ที่เกษตรกรให้ความยินยอมเท่านั้น' + (ctx.unmask ? '' : ' (ปิดบังเบอร์โทร)')]
     };

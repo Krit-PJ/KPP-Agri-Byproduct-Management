@@ -309,7 +309,9 @@
       const tt = s.totals;
       meta = 'ตลาด Green Gain Hub ทุกอำเภอ';
       html += '<div class="ggh-cards-row is-5">';
-      html += card({ label: 'แปลงพร้อมขาย', value: fmt(tt.farmerPlots), unit: 'แปลง', note: `จากเกษตรกร ${fmt(tt.farmers)} ราย` });
+      const lr = s.listing;   // 1.1.0: the plots buyers see (Green Gain Hub shows a plot until N days after harvest)
+      html += card({ label: 'แปลงพร้อมขาย', value: fmt(tt.farmerPlots), unit: 'แปลง',
+        note: `จากเกษตรกร ${fmt(tt.farmers)} ราย` + (tt.hiddenPlots ? ` · ไม่แสดงบนตลาด ${fmt(tt.hiddenPlots)} แปลง${lr && lr.hideAfterHarvestDays ? ` (เกิน ${fmt(lr.hideAfterHarvestDays)} วันหลังเก็บเกี่ยว หรือไม่มีวันเก็บเกี่ยว)` : ''}` : '') });
       html += card({ label: 'พื้นที่แปลงพร้อมขาย', value: fmt(tt.areaRai, 1), unit: 'ไร่', note: `ครอบคลุม ${fmt(tt.districtsCovered)} จาก ${fmt(tt.districtsTotal)} อำเภอ` });
       html += card({ label: 'จะเก็บเกี่ยวใน 30 วัน', value: fmt(s.upcomingHarvest.days30.areaRai, 1), unit: 'ไร่', cls: 'is-straw', note: `${fmt(s.upcomingHarvest.days30.plots)} แปลง` });
       html += card({ label: 'ผู้รับซื้อ', value: fmt(tt.buyers), unit: 'ราย', note: `รับได้รวม ${fmt(tt.capacityTonPerDay, 1)} ตัน/วัน` });

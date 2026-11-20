@@ -21,7 +21,7 @@
  *   ?api=v1&endpoint=health           Public version check
  *   POST {method,args,token}          Officer / admin API (Admin.gs)
  */
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const APP_FEATURE = 'ABM_SPLIT';
 const APP_NAME = 'ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร';
 // Database: "Agri By-product Management KPP — Database (v1.0.0)" in Drive folder "10. Agri By-product Management".
@@ -124,6 +124,10 @@ function buildPublicSummary_(now) {
   const farmers = gghRows_('farmers').filter(function (r) {
     return String(r[11] || '').trim().toLowerCase() === 'open';
   });
+  // 1.1.0: market numbers count the plots buyers see on Green Gain Hub (shown until N days after harvest);
+  // the harvest calendar (harvestByMonth, upcoming) still uses every Open plot.
+  const hiddenIds = gghHiddenPlots_();
+  let hiddenPlots = 0;
   const buyers = gghRows_('buyers').filter(function (r) {
     return String(r[11] || '').trim().toLowerCase() === 'active';
   });
@@ -159,6 +163,15 @@ function buildPublicSummary_(now) {
 
   farmers.forEach(function (r) {
     const area = parseAreaRai_(r[8]);
+    const harvestAt = toDate_(r[7]);
+    if (harvestAt) {
+      const hk = Utilities.formatDate(harvestAt, Session.getScriptTimeZone(), 'yyyy-MM');
+      if (hk in monthIndex) { months[monthIndex[hk]].plots++; months[monthIndex[hk]].areaRai += area; }
+      const days = Math.round((startOfDay_(harvestAt).getTime() - today.getTime()) / 86400000);
+      if (days >= 0 && days <= 30) { upcoming.days30.plots++; upcoming.days30.areaRai += area; }
+      if (days >= 0 && days <= 60) { upcoming.days60.plots++; upcoming.days60.areaRai += area; }
+    }
+    if (hiddenIds[text_(r[0])]) { hiddenPlots++; return; }
     const material = resolvedMaterial_(r[13], r[14], r[5]) || 'ไม่ระบุ';
     const crop = text_(r[5]) || 'ไม่ระบุ';
     const owner = normalizePhone_(r[12]) || normalizePhone_(r[4]);
@@ -181,18 +194,6 @@ function buildPublicSummary_(now) {
     const c = byCrop[crop] || (byCrop[crop] = { crop: crop, material: material, plots: 0, areaRai: 0 });
     c.plots++;
     c.areaRai += area;
-
-    const harvest = toDate_(r[7]);
-    if (harvest) {
-      const key = Utilities.formatDate(harvest, Session.getScriptTimeZone(), 'yyyy-MM');
-      if (key in monthIndex) {
-        months[monthIndex[key]].plots++;
-        months[monthIndex[key]].areaRai += area;
-      }
-      const days = Math.round((startOfDay_(harvest).getTime() - today.getTime()) / 86400000);
-      if (days >= 0 && days <= 30) { upcoming.days30.plots++; upcoming.days30.areaRai += area; }
-      if (days >= 0 && days <= 60) { upcoming.days60.plots++; upcoming.days60.areaRai += area; }
-    }
   });
 
   const materialList = Object.keys(byMaterial).map(function (k) {
@@ -223,9 +224,11 @@ function buildPublicSummary_(now) {
     generatedAt: now.toISOString(),
     province: provinceName_(),
     market: gghFeedStatus_(),
+    listing: gghListingRule_(),
     cacheSeconds: SUMMARY_CACHE_SECONDS,
     totals: {
-      farmerPlots: farmers.length,
+      farmerPlots: farmers.length - hiddenPlots,
+      hiddenPlots: hiddenPlots,
       farmers: Object.keys(owners).length,
       plotsWithCoordinates: withCoordinates,
       areaRai: round_(totalArea, 2),
