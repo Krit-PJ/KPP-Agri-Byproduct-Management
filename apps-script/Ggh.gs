@@ -8,6 +8,10 @@
  * written to the Green Gain Hub database (Config → abm_feed_key_sha256) — nobody copies a secret by hand, and the
  * Green Gain Hub sheet never holds the key itself. Run gghLink_() (part of setupSystem) again to rotate it.
  *
+ * 1.1.0: Green Gain Hub 2.8.0 shows a plot on its market until N days after harvest. Officers (Super/Mini Super Admin)
+ * set N here (POST {action:'abm_config', key, hideAfterHarvestDays}); the feed says which Open plots are hidden today
+ * (ids and reasons only), so the dashboard counts the same plots buyers see.
+ *
  * Script Properties (optional): GGH_API_URL (Green Gain Hub /exec), GGH_SPREADSHEET_ID (Green Gain Hub database).
  */
 const GGH_API_DEFAULT = 'https://script.google.com/macros/s/AKfycbylUGpPc7g9ODTrt-sodEwAa4G3mx8yP-Rve4lqllPyHGxpZkiuLkNcprQ3p_pVB7WT/exec';
@@ -149,6 +153,51 @@ function gghFeedStatus_() {
   if (!GGH_FEED_STATUS_) { try { gghFeed_(false); } catch (err) { /* status set */ } }
   const s = GGH_FEED_STATUS_ || { ok: false, error: 'ยังไม่ได้อ่านข้อมูล' };
   return { source: 'Green Gain Hub', url: GGH_SITE_URL, ok: !!s.ok, stale: !!s.stale, generatedAt: s.generatedAt || '', error: s.error || '' };
+}
+
+/* ------------------------------ 1.1.0: market listing rule (how long a plot stays on the market after harvest) ------------------------------ */
+function gghPost_(body) {
+  const key = gghProps_().getProperty(GGH_FEED_KEY_PROP);
+  if (!key) throw new Error('ยังไม่ได้เชื่อมกับ Green Gain Hub (รัน setupSystem)');
+  body.key = key;
+  const res = UrlFetchApp.fetch(gghApiUrl_(), { method: 'post', contentType: 'text/plain;charset=utf-8', muteHttpExceptions: true, followRedirects: true,
+    payload: JSON.stringify(body) });
+  if (res.getResponseCode() !== 200) throw new Error('Green Gain Hub HTTP ' + res.getResponseCode());
+  let out;
+  try { out = JSON.parse(res.getContentText()); } catch (e) { throw new Error('Green Gain Hub ตอบกลับไม่ถูกต้อง'); }
+  if (!out || !out.ok || !out.data) throw new Error('Green Gain Hub: ' + (out && out.error || 'ไม่มีข้อมูล'));
+  return out.data;
+}
+
+/** { hideAfterHarvestDays, startDate, listedPlots, hiddenPlots, hidden:[{id, reason}] } read now from Green Gain Hub. */
+function gghMarketRuleGet_() {
+  return { status: 'success', rule: gghPost_({ action: 'abm_config' }) };
+}
+
+function gghMarketRuleSave_(input, s) {
+  input = input || {};
+  const n = Number(input.hideAfterHarvestDays);
+  if (input.hideAfterHarvestDays === '' || input.hideAfterHarvestDays === null || !isFinite(n) || Math.floor(n) !== n || n < 0 || n > 365) {
+    throw new Error('จำนวนวันต้องเป็นจำนวนเต็ม 0–365 (0 = แสดงทุกแปลง ไม่ซ่อน)');
+  }
+  const rule = gghPost_({ action: 'abm_config', hideAfterHarvestDays: n, by: (s && s.username) || '' });
+  gghFeedClear_();
+  try { CacheService.getScriptCache().remove(SUMMARY_CACHE_KEY); } catch (err) { /* best effort */ }
+  adminAudit_(s, 'ggh_market_rule', n ? 'ตลาด Green Gain Hub: แสดงแปลงถึง ' + n + ' วันหลังวันเก็บเกี่ยว (ซ่อน ' + rule.hiddenPlots + ' แปลง)' : 'ตลาด Green Gain Hub: แสดงทุกแปลง (ปิดการซ่อน)');
+  return { status: 'success', rule: rule };
+}
+
+/** From the cached feed: { id: reason } of Open plots that buyers do not see today. Empty if Green Gain Hub is older than 2.8.0. */
+function gghHiddenPlots_() {
+  const out = {};
+  try {
+    const m = gghFeed_(false).market;
+    ((m && m.hidden) || []).forEach(function (h) { out[String(h.id)] = h.reason || 'hidden'; });
+  } catch (err) { /* feed down: nothing known */ }
+  return out;
+}
+function gghListingRule_() {
+  try { const m = gghFeed_(false).market; return m ? { hideAfterHarvestDays: m.hideAfterHarvestDays, startDate: m.startDate || '' } : null; } catch (err) { return null; }
 }
 
 /** Run from the editor: confirms the feed works. */

@@ -26,7 +26,7 @@
   const UNIT = 'ตันคาร์บอนไดออกไซด์เทียบเท่า';
   const VIEW_LABEL = { overview: 'ภาพรวม', record: 'บันทึกการจัดการ', records: 'รายการบันทึก', import: 'นำเข้าข้อมูลเพาะปลูก', history: 'ข้อมูลเพาะปลูกที่นำเข้าแล้ว',
     reports: 'รายงาน', admins: 'เจ้าหน้าที่และผู้ดูแล', log: 'ประวัติการใช้งาน', targets: 'เป้าหมายและวิธีจัดการ', ghg: 'ราคาและค่าคำนวณ',
-    crops: 'ชนิดพืชในทะเบียน', api: 'เชื่อมต่อระบบอื่น', account: 'บัญชีของฉัน' };
+    crops: 'ชนิดพืชในทะเบียน', market: 'ตลาด Green Gain Hub', api: 'เชื่อมต่อระบบอื่น', account: 'บัญชีของฉัน' };
   const MENU = {
     admin: [{ key: 'record', views: ['record'] }, { key: 'records', views: ['records'] }, { key: 'reports', views: ['reports'] }, { key: 'account', views: ['account'] }],
     mini: [
@@ -34,7 +34,7 @@
       { key: 'data', label: 'ข้อมูลการจัดการ', views: ['records', 'record', 'import', 'history'] },
       { key: 'reports', label: 'รายงาน', views: ['reports'] },
       { key: 'users', label: 'ผู้ใช้งาน', views: ['admins', 'log'] },
-      { key: 'settings', label: 'ตั้งค่า', views: ['targets', 'ghg', 'crops', 'api'] }
+      { key: 'settings', label: 'ตั้งค่า', views: ['targets', 'ghg', 'crops', 'market', 'api'] }
     ]
   };
   // Advanced settings (other-system API) are shown to Super Admin only.
@@ -173,7 +173,7 @@
 
   /* ---------------- navigation ---------------- */
   const loaders = { overview: loadOverview, record: loadRecordView, records: loadRecords, ghg: loadGhg, targets: () => loadTargets(), history: loadHistory, crops: loadCropTypesTable,
-    reports: loadReportCatalog, api: loadApi, admins: loadAdmins, log: loadLog, account: loadAccount };
+    reports: loadReportCatalog, market: () => loadGghRule(), api: loadApi, admins: loadAdmins, log: loadLog, account: loadAccount };
   function show(view) {
     if (!state.me) return;
     const menu = menuFor();
@@ -405,6 +405,34 @@
   $('gghTestBtn').addEventListener('click', () => busy($('gghTestBtn'), 'กำลังทดสอบ…', async () => {
     try { const r = await call('gghTestServer'); setResult('gghResult', r.result, /^PASS/.test(r.result)); } catch (err) { setResult('gghResult', err.message, false); }
   }));
+
+  /* 1.1.0: how long a plot stays on the Green Gain Hub market after harvest (Super / Mini Super Admin) */
+  const thaiDay = (iso) => { const d = new Date(String(iso || '') + 'T00:00:00'); return isNaN(d) ? '' : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }); };
+  function showGghRule(rule) {
+    const f = $('gghRuleForm');
+    f.hideAfterHarvestDays.value = rule.hideAfterHarvestDays;
+    const noDate = (rule.hidden || []).filter((h) => h.reason === 'no_harvest').length;
+    $('gghRuleStatus').innerHTML = `<dl class="adm-kv">
+      <dt>ค่าปัจจุบัน</dt><dd>${rule.hideAfterHarvestDays ? `แสดงถึง <strong>${esc(rule.hideAfterHarvestDays)} วัน</strong> หลังวันเก็บเกี่ยว` : '<strong>แสดงทุกแปลง</strong> (ไม่ซ่อน)'}</dd>
+      ${rule.hideAfterHarvestDays && rule.startDate ? `<dt>เริ่มใช้กฎ</dt><dd>${esc(thaiDay(rule.startDate))} (แปลงที่ประกาศไว้ก่อนวันนี้ นับวันจากวันเริ่มใช้กฎ)</dd>` : ''}
+      <dt>แปลงที่ผู้รับซื้อเห็นวันนี้</dt><dd>${esc(rule.listedPlots)} แปลง</dd>
+      <dt>แปลงที่ซ่อน</dt><dd>${esc(rule.hiddenPlots)} แปลง${noDate ? ` (ไม่มีวันเก็บเกี่ยว ${esc(noDate)} แปลง)` : ''}</dd></dl>`;
+  }
+  async function loadGghRule() {
+    try { const r = await call('gghMarketRuleServer'); showGghRule(r.rule); }
+    catch (err) { $('gghRuleStatus').innerHTML = `<p class="adm-muted">อ่านค่าจาก Green Gain Hub ไม่ได้: ${esc(err.message)}</p>`; }
+  }
+  $('gghRuleForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target; const btn = f.querySelector('[type="submit"]');
+    const days = Number(f.hideAfterHarvestDays.value);
+    await busy(btn, 'กำลังบันทึก…', async () => {
+      try {
+        const r = await call('gghMarketRuleSaveServer', { hideAfterHarvestDays: days });
+        showGghRule(r.rule);
+        setResult('gghRuleResult', `บันทึกแล้ว ตลาดแสดง ${r.rule.listedPlots} แปลง ซ่อน ${r.rule.hiddenPlots} แปลง`, true);
+      } catch (err) { setResult('gghRuleResult', err.message, false); }
+    });
+  });
 
   /* ---------------- admins (super) ---------------- */
   async function loadAdmins() {

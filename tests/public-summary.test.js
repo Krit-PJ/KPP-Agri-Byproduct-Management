@@ -61,7 +61,9 @@ const root = path.join(__dirname, '..', 'apps-script');
 const districts = fs.readFileSync(path.join(root, 'Districts.gs'), 'utf8');
 // ABM 1.0.0: plots and buyers come from Green Gain Hub's feed (Ggh.gs, tested in balance-hub.test.js); here a stub
 // reads the same rows from the local sheets so this test stays about the summary itself.
-const feedStub = "function gghRows_(k) { return dataRows_(SpreadsheetApp.openById().getSheetByName(k)); }\nfunction gghFeedStatus_() { return { source: 'Green Gain Hub', ok: true, stale: false }; }\n";
+const feedStub = "function gghRows_(k) { return dataRows_(SpreadsheetApp.openById().getSheetByName(k)); }\nfunction gghFeedStatus_() { return { source: 'Green Gain Hub', ok: true, stale: false }; }\n" +
+  // 1.1.0: which Open plots Green Gain Hub does not show today (from its feed)
+  "function gghHiddenPlots_() { return global.__gghHidden || {}; }\nfunction gghListingRule_() { return { hideAfterHarvestDays: 20, startDate: '2026-11-21' }; }\n";
 const code = feedStub + ['Code.gs', 'Admin.gs', 'Crops.gs', 'Counter.gs', 'Reports.gs', 'Ghg.gs', 'Residue.gs', 'Staff.gs', 'Balance.gs'].map((f) => fs.readFileSync(path.join(root, f), 'utf8')).join('\n');
 let fetched = [];
 let upstream = 'ok';
@@ -108,6 +110,14 @@ assert(Math.abs(s.totals.areaRai - (20.3125 + 10 + 30.5 + 2.75 + 5)) < 0.01, 'to
 assert(s.totals.buyers === 2 && s.totals.capacityTonPerDay === 60, 'Active buyer totals are wrong');
 assert(s.totals.avgBuyerPriceBahtPerRai === 35, 'average buyer price is wrong');
 assert(s.upcomingHarvest.days30.plots === 1 && s.upcomingHarvest.days60.plots === 2, 'upcoming harvest windows are wrong');
+
+// 1.1.0: plots Green Gain Hub no longer shows (N days after harvest) leave the market numbers, not the harvest calendar
+global.__gghHidden = { f3: 'after_harvest' };
+const sh = api.buildPublicSummary_(now);
+assert(sh.totals.farmerPlots === 4 && sh.totals.hiddenPlots === 1 && Math.abs(sh.totals.areaRai - (20.3125 + 10 + 2.75 + 5)) < 0.01, 'hidden plot left out of market totals');
+assert(JSON.stringify(sh.harvestByMonth) === JSON.stringify(s.harvestByMonth) && sh.upcomingHarvest.days60.plots === 2, 'harvest calendar still counts every Open plot');
+assert(sh.listing && sh.listing.hideAfterHarvestDays === 20, 'listing rule passed to the dashboard');
+global.__gghHidden = {};
 const khanu = s.byDistrict.find(d => d.name === 'ขาณุวรลักษบุรี');
 assert(khanu.plots === 2 && khanu.farmers === 1 && khanu.buyers === 2, 'Khanu district aggregation is wrong');
 assert(s.byDistrict.find(d => d.code === 'OTHER').plots === 1, 'plot without coordinates must go to OTHER');
@@ -126,7 +136,7 @@ const json = JSON.stringify(s);
 // HTTP routing: JSON, JSONP, health, key gate, and RPC untouched.
 api.doGet({ parameter: { api: 'v1', endpoint: 'summary', key: 'YOUR_KEY' } });
 let out = JSON.parse(lastOutput.body);
-assert(out.ok && out.api === 'v1' && out.apiVersion === '1.0.0' && out.data.totals.farmerPlots === 5 && lastOutput.mime === 'json', 'JSON summary route failed: ' + lastOutput.body.slice(0, 200));
+assert(out.ok && out.api === 'v1' && out.apiVersion === '1.1.0' && out.data.totals.farmerPlots === 5 && lastOutput.mime === 'json', 'JSON summary route failed: ' + lastOutput.body.slice(0, 200));
 assert(out.data.crops && out.data.crops.ok && Array.isArray(out.data.crops.crops) && out.data.crops.crops.length === 0, 'summary must include an empty crops block before any import: ' + JSON.stringify(out.data.crops));
 api.doGet({ parameter: { api: 'v1', endpoint: 'summary', callback: 'cb_1' } });
 assert(lastOutput.body.startsWith('cb_1(') && lastOutput.mime === 'js', 'JSONP summary route failed');
@@ -141,7 +151,7 @@ api.doGet({ parameter: { api: 'v1', endpoint: 'summary', key: 'secret-1' } });
 assert(JSON.parse(lastOutput.body).ok === true, 'matching key must be accepted');
 props = {};
 api.doGet({ parameter: { action: 'rpc', method: 'getApiInfoServer', args: '[]' } });
-assert(JSON.parse(lastOutput.body).endpoint === 'health' && JSON.parse(lastOutput.body).apiVersion === '1.0.0', 'ABM has no JSONP RPC: a bare GET answers health');
+assert(JSON.parse(lastOutput.body).endpoint === 'health' && JSON.parse(lastOutput.body).apiVersion === '1.1.0', 'ABM has no JSONP RPC: a bare GET answers health');
 assert(s.market && s.market.source === 'Green Gain Hub', 'summary says where the market numbers come from');
 
 // Without Districts.gs the summary still works (everything falls into OTHER).

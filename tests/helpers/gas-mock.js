@@ -48,7 +48,7 @@ function load(options) {
   }, options.sheets || {});
   // ABM 1.0.0: the farmers / buyers sheets stand for Green Gain Hub's data, served by a simulated feed (UrlFetchApp below).
   const props = Object.assign(options.unlinked ? {} : { GGH_FEED_KEY: 'test-feed-key' }, options.props || {});
-  const feed = { calls: 0, down: false, key: 'test-feed-key' };   // key = what Green Gain Hub accepts
+  const feed = { calls: 0, down: false, key: 'test-feed-key', posts: [], market: null };   // key = what Green Gain Hub accepts
   const cache = new Map();
   let last = null;
   const signed = (b) => [...b].map((x) => (x > 127 ? x - 256 : x));
@@ -107,9 +107,16 @@ function load(options) {
     feed.calls++;
     let out;
     if (feed.down) return { getResponseCode: () => 503, getContentText: () => 'down' };
-    if (body.action !== 'abm_feed' || body.key !== feed.key) out = { ok: false, error: 'Invalid feed key' };
-    else out = { ok: true, data: { apiVersion: '2.6.0', generatedAt: new Date().toISOString(),
-      farmers: { headers: HEADERS.farmers, rows: rows(sheets.farmers) }, buyers: { headers: HEADERS.buyers, rows: rows(sheets.buyers) } } };
+    if (body.key !== feed.key || (body.action !== 'abm_feed' && body.action !== 'abm_config')) out = { ok: false, error: 'Invalid feed key' };
+    else if (body.action === 'abm_config') {
+      // 1.1.0: Green Gain Hub 2.8.0 market listing rule (simulated: feed.market, set by the test)
+      feed.posts.push(body);
+      if (body.hideAfterHarvestDays !== undefined) feed.market = Object.assign({}, feed.market || {}, { hideAfterHarvestDays: body.hideAfterHarvestDays });
+      out = { ok: true, data: Object.assign({ hideAfterHarvestDays: 20, startDate: '2026-11-21', listedPlots: 0, hiddenPlots: 0, hidden: [] }, feed.market || {}) };
+    }
+    else out = { ok: true, data: Object.assign({ apiVersion: '2.6.0', generatedAt: new Date().toISOString(),
+      farmers: { headers: HEADERS.farmers, rows: rows(sheets.farmers) }, buyers: { headers: HEADERS.buyers, rows: rows(sheets.buyers) } },
+      feed.market ? { market: feed.market } : {}) };
     const text = JSON.stringify(out);
     return { getResponseCode: () => 200, getContentText: () => text };
   };
