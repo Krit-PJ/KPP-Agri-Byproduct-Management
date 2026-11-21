@@ -200,6 +200,21 @@ function gghListingRule_() {
   try { const m = gghFeed_(false).market; return m ? { hideAfterHarvestDays: m.hideAfterHarvestDays, startDate: m.startDate || '' } : null; } catch (err) { return null; }
 }
 
+/** 1.2.0: is this phone a Green Gain Hub farmer/buyer account? (GGH 2.9.0 feed: SHA-256 of user phones; older GGH → false) */
+function gghIsMarketPhone_(phone) {
+  const p = normalizePhone_(phone);
+  if (!/^0\d{9}$/.test(p)) return false;
+  let feed = null;
+  try { feed = gghFeed_(false); } catch (err) { return false; }
+  const list = feed && feed.marketPhones;
+  if (!Array.isArray(list)) return false;
+  const h = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, p, Utilities.Charset.UTF_8)
+    .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+  if (list.indexOf(h) >= 0) return true;
+  // a farmer who registered a minute ago may not be in the cached copy yet: read once more
+  try { const fresh = gghFeed_(true); return Array.isArray(fresh.marketPhones) && fresh.marketPhones.indexOf(h) >= 0; } catch (err) { return false; }
+}
+
 /** Run from the editor: confirms the feed works. */
 function verifyGghFeed() {
   const d = gghFeed_(true);

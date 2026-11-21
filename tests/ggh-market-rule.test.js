@@ -9,7 +9,7 @@ const { post, sheets, api, feed } = env;
 const log = console.log; console.log = () => {}; api.setupSystem(); console.log = log;
 
 const T = post('adminLoginServer', [{ username: 'krit', password: 'Super12345' }]).result.token;
-const D = post('staffRegisterServer', [{ name: 'สมชาย ใจดี', phone: '0812345678', officeType: 'district', district: '6204', province: 'กำแพงเพชร' }]).result.token;
+const D = env.officer({ name: 'สมชาย ใจดี', phone: '0812345678', officeType: 'district', district: '6204', province: 'กำแพงเพชร' }).result.token;
 
 /* read the current rule from Green Gain Hub */
 let r = post('gghMarketRuleServer', [], T);

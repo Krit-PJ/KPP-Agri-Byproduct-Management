@@ -11,7 +11,7 @@
   const fmt = (n, d = 0) => (n === null || n === undefined || !isFinite(n) ? '–' : new Intl.NumberFormat('th-TH', { maximumFractionDigits: d }).format(n));
   const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
   const monthLabel = (ym) => { const y = Math.floor(ym / 100), m = ym % 100; return `${TH_MONTHS[m - 1]} ${String(y + 543).slice(-2)}`; };
-  const STATUS_TH = { active: 'ใช้งาน', replaced: 'ถูกแทนที่', deleted: 'ลบแล้ว', disabled: 'ระงับ' };
+  const STATUS_TH = { active: 'ใช้งาน', replaced: 'ถูกแทนที่', deleted: 'ลบแล้ว', disabled: 'ระงับ', pending: 'รออนุมัติ' };
   const ACTION_TH = { login: 'เข้าสู่ระบบ', crop_import: 'นำเข้าข้อมูลเพาะปลูก', crop_import_delete: 'ลบชุดข้อมูล', crop_type_save: 'บันทึกชนิดพืช',
     settings_save: 'แก้ไขการเชื่อมต่อ API', report_view: 'ดูรายงาน', report_export: 'ส่งออกรายงาน', admin_create: 'เพิ่มผู้ดูแล', admin_update: 'แก้ไขผู้ดูแล', password_change: 'เปลี่ยนรหัสผ่าน',
     password_reset: 'ตั้งรหัสผ่านใหม่ให้ผู้ดูแล', super_bootstrap: 'สร้าง Super Admin', cache_clear: 'อัปเดตหน้าแรก',
@@ -127,7 +127,7 @@
       } catch (err) {
         // A farmer/buyer number typed here: point to the homepage box instead of "not found".
         if (/^MARKET_ACCOUNT:/.test(err.message)) {
-          $('staffLoginError').innerHTML = esc(err.message.replace(/^MARKET_ACCOUNT:\s*/, '')) + ' <a href="./#market">ไปหน้าแรก</a>';
+          $('staffLoginError').innerHTML = esc(err.message.replace(/^MARKET_ACCOUNT:\s*/, '')) + ' <a href="https://krit-pj.github.io/Green_Gain_Hub-KPP/">ไปที่ Green Gain Hub</a>';
         } else $('staffLoginError').textContent = err.message;
       }
     });
@@ -139,10 +139,15 @@
     busy($('regBtn'), 'กำลังลงทะเบียน…', async () => {
       try {
         const r = await window.ABM_STAFF.register(input);
-        state.token = r.token; $('regError').textContent = '';
-        await enterApp(r);
-        toast(r.message);
-      } catch (err) { $('regError').textContent = err.message; }
+        $('regError').textContent = '';
+        if (r && r.token) { state.token = r.token; await enterApp(r); toast(r.message); return; }
+        // 1.2.0: the account waits for approval — no session yet
+        $('regError').innerHTML = '<strong>' + esc(r.message) + '</strong>'; e.target.reset();
+      } catch (err) {
+        const m = String(err.message || '');
+        if (/^MARKET_ACCOUNT:/.test(m)) $('regError').innerHTML = esc(m.replace(/^MARKET_ACCOUNT:\s*/, '')) + ' <a href="https://krit-pj.github.io/Green_Gain_Hub-KPP/">ไปที่ Green Gain Hub</a>';
+        else $('regError').textContent = m.replace(/^SSO_REQUIRED:\s*/, '');
+      }
     });
   });
 
@@ -449,10 +454,27 @@
     const superOpt = $('adminRole').querySelector('option[value="super"]');
     if (superOpt) superOpt.hidden = superOpt.disabled = state.me.role !== 'super';
     syncAdminRole();
-    $('adminsBody').innerHTML = list.map((a) => `<tr><td>${esc(a.name)}</td><td>${esc(a.username)}</td><td>${esc(a.phone || '–')}</td><td>${esc(ROLE_TH[a.role] || a.role)}</td>
+    // 1.2.0: self-registrations wait for approval — shown first with อนุมัติ / ไม่อนุมัติ
+    list.sort((x, y) => (y.status === 'pending') - (x.status === 'pending'));
+    const pend = list.filter((a) => a.status === 'pending').length;
+    $('adminsPending').classList.toggle('hidden', !pend);
+    $('adminsPending').innerHTML = pend ? `<strong>มีคำขอลงทะเบียนรออนุมัติ ${pend} รายการ</strong> — ตรวจชื่อ เบอร์ และสังกัดว่าเป็นเจ้าหน้าที่จริงก่อนกด "อนุมัติ"` : '';
+    $('adminsBody').innerHTML = list.map((a) => `<tr${a.status === 'pending' ? ' class="adm-row-pending"' : ''}><td>${esc(a.name)}</td><td>${esc(a.username)}</td><td>${esc(a.phone || '–')}</td><td>${esc(ROLE_TH[a.role] || a.role)}</td>
       <td>${esc(officeOf(a))}${a.registeredVia === 'self' ? '<br><span class="adm-badge">ลงทะเบียนเอง</span>' : ''}</td>
       <td><span class="adm-badge ${esc(a.status)}">${esc(STATUS_TH[a.status] || a.status)}</span></td><td>${esc(a.lastLogin || '–')}</td>
-      <td>${canTouch(a) ? `<button type="button" data-edit-admin="${esc(a.username)}">แก้ไข</button><button type="button" data-reset="${esc(a.username)}">ตั้งรหัสผ่านใหม่</button>` : '<span class="adm-muted">เฉพาะ Super Admin</span>'}</td></tr>`).join('');
+      <td>${a.status === 'pending' ? `<button type="button" class="adm-btn-primary" data-approve="${esc(a.username)}">อนุมัติ</button><button type="button" data-reject="${esc(a.username)}">ไม่อนุมัติ</button>`
+        : canTouch(a) ? `<button type="button" data-edit-admin="${esc(a.username)}">แก้ไข</button><button type="button" data-reset="${esc(a.username)}">ตั้งรหัสผ่านใหม่</button>` : '<span class="adm-muted">เฉพาะ Super Admin</span>'}</td></tr>`).join('');
+    const decide = async (username, status) => {
+      const a = list.find((x) => x.username === username);
+      if (status === 'disabled' && !window.confirm('ไม่อนุมัติ ' + a.name + ' ? (บัญชีจะเป็นสถานะ "ระงับ" แก้ไขภายหลังได้)')) return;
+      try {
+        await call('adminSaveServer', { username: a.username, name: a.name, phone: a.phone, role: 'admin', status, officeType: a.officeType, group: a.group, district: a.district });
+        toast(status === 'active' ? 'อนุมัติแล้ว ' + a.name + ' เข้าสู่ระบบด้วยหมายเลขโทรศัพท์ได้' : 'ไม่อนุมัติ ' + a.name);
+        loadAdmins();
+      } catch (err) { toast(err.message); }
+    };
+    $('adminsBody').querySelectorAll('[data-approve]').forEach((b) => b.addEventListener('click', () => decide(b.dataset.approve, 'active')));
+    $('adminsBody').querySelectorAll('[data-reject]').forEach((b) => b.addEventListener('click', () => decide(b.dataset.reject, 'disabled')));
     $('adminsBody').querySelectorAll('[data-edit-admin]').forEach((b) => b.addEventListener('click', () => {
       const a = list.find((x) => x.username === b.dataset.editAdmin); const f = $('adminForm');
       f.name.value = a.name; f.username.value = a.username; f.username.readOnly = true; f.phone.value = a.phone || ''; f.role.value = a.role; f.status.value = a.status;

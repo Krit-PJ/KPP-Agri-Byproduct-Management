@@ -1,4 +1,4 @@
-# ABM API 1.1.0 — ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร
+# ABM API 1.2.0 — ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร
 
 Web App (`/exec`) ของโปรเจกต์ Apps Script **ABM — Agri By-product Management KPP API**
 
@@ -9,6 +9,12 @@ Web App (`/exec`) ของโปรเจกต์ Apps Script **ABM — Agri B
 
 ไม่มี JSONP RPC ของตลาด (`?action=rpc`, `loginServer`, `registerServer`, `ssoLoginServer`, ...) — อยู่ที่ Green Gain Hub
 
+## 1.2.0: ลงทะเบียนเจ้าหน้าที่ (ยืนยันเบอร์ + รออนุมัติ)
+
+- `staffRegisterServer({ name, phone, officeType, district|group, province, ticket })` — `ticket` จากตัวตนกลาง (aud ABM) บังคับ เว้นแต่ `SSO_MODE=off` · ตอบ `{ status: 'pending', message }` (ไม่มี token)
+- ข้อผิดพลาด `MARKET_ACCOUNT: …` = เกษตรกร/ผู้รับซื้อ (scope `market` หรือเบอร์ใน feed `marketPhones`) · `ssoStaffLoginServer` ตอบ `{ status: 'market_user', message }`
+- บัญชี `pending` เข้าไม่ได้จนกว่า `adminSaveServer` (Mini/Super) ตั้ง `status: 'active'` (ไม่อนุมัติ = `disabled`)
+
 ## 1.1.0: ระยะเวลาแสดงแปลงบนตลาด Green Gain Hub
 
 - RPC `gghMarketRuleServer()` / `gghMarketRuleSaveServer({hideAfterHarvestDays})` (Super/Mini) → POST `{action:'abm_config', key, hideAfterHarvestDays, by}` ไปที่ Green Gain Hub 2.8.0 · บันทึก `admin_log` action `ggh_market_rule`
@@ -16,7 +22,7 @@ Web App (`/exec`) ของโปรเจกต์ Apps Script **ABM — Agri B
 
 ## 1.0.0: แยกจาก Green Gain Hub
 
-- `health` → `{ apiVersion: "1.1.0", feature: "ABM_SPLIT", system: "ABM" }`
+- `health` → `{ apiVersion: "1.2.0", feature: "ABM_SPLIT", system: "ABM" }`
 - `summary.data.market` → `{ source: "Green Gain Hub", url, ok, stale, generatedAt, error }` บอกว่าตัวเลขตลาดมาจาก feed และเป็นปัจจุบันหรือไม่
   - `ok:false` = อ่าน Green Gain Hub ไม่ได้และไม่มีสำเนาล่าสุด (ตัวเลขตลาดเป็น 0)
   - `stale:true` = อ่านไม่ได้ ใช้สำเนาล่าสุดที่อ่านได้ (เก็บไม่เกิน 6 ชั่วโมง)

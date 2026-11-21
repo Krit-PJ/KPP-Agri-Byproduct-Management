@@ -15,7 +15,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/dashboard.css?v=1.1.0">
+  <link rel="stylesheet" href="assets/dashboard.css?v=1.2.0">
 
   <style>
     * { box-sizing: border-box; }
@@ -219,7 +219,7 @@
           <label class="label-text" for="staffPhone">หมายเลขโทรศัพท์ที่ลงทะเบียนไว้</label>
           <input type="tel" id="staffPhone" name="phone" class="input-field text-lg tracking-widest text-center font-bold" placeholder="08XXXXXXXX" maxlength="12" inputmode="numeric" autocomplete="tel">
           <div class="ggh-dmsg" id="staffLoginMsg" role="alert"></div>
-          <p class="ggh-dmuted">ใช้หมายเลขเดียวกับที่ลงทะเบียนไว้ใน Agri-Risk Map หรือ Smart Agri ได้ (ตัวตนกลาง)</p>
+          <p class="ggh-dmuted">ใช้หมายเลขเดียวกับบัญชีเจ้าหน้าที่ใน Agri-Risk Map หรือ Smart Agri ได้ (ตัวตนกลาง)</p>
           <button type="submit" class="ggh-dbtn" id="staffLoginBtn">เข้าสู่ระบบ</button>
           <p class="ggh-dswitch">ยังไม่มีบัญชี? <button type="button" data-stafftab="register">ลงทะเบียนเจ้าหน้าที่</button></p>
         </form>
@@ -237,7 +237,8 @@
           <datalist id="sregProvinces"></datalist>
           <p class="ggh-dmuted">ข้อมูลนี้ใช้ระบุตัวผู้บันทึกข้อมูลในระบบและรายงานของหน่วยงานเท่านั้น</p>
           <div class="ggh-dmsg" id="staffRegMsg" role="alert"></div>
-          <button type="submit" class="ggh-dbtn" id="staffRegBtn">ลงทะเบียนและเข้าใช้งาน</button>
+          <p class="ggh-dmuted">ลงทะเบียนแล้วรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน · เกษตรกรและผู้รับซื้อใช้ Green Gain Hub</p>
+          <button type="submit" class="ggh-dbtn" id="staffRegBtn">ส่งคำขอลงทะเบียน</button>
         </form>
         <p class="ggh-dfoot">Super Admin / Mini Super Admin <a href="admin.html#admin">เข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่าน</a></p>
       </div>
@@ -261,11 +262,11 @@
     </div>
   </footer>
 
-  <script src="assets/config.js?v=1.1.0"></script>
+  <script src="assets/config.js?v=1.2.0"></script>
   <script src="https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js"></script>
-  <script src="assets/sso-client.js?v=1.1.0"></script>
-  <script src="assets/staff-auth.js?v=1.1.0"></script>
-  <script src="assets/dashboard.js?v=1.1.0" defer></script>
+  <script src="assets/sso-client.js?v=1.2.0"></script>
+  <script src="assets/staff-auth.js?v=1.2.0"></script>
+  <script src="assets/dashboard.js?v=1.2.0" defer></script>
   <script>
     /* ABM 1.0.0 — homepage: executive dashboard (dashboard.js) + officer sign-in popup (unchanged from Green Gain Hub 2.4.2).
        Farmers and buyers use Green Gain Hub; the market link comes from ABM_CONFIG.GGH_URL. */
@@ -354,7 +355,10 @@
       try { await window.ABM_STAFF.login(phone); location.href = 'admin.html'; }
       catch (err) {
         const msg = String(err.message || '');
-        if (/ลงทะเบียน/.test(msg)) {
+        if (/^MARKET_ACCOUNT:/.test(msg)) {
+          // 1.2.0: farmers and buyers use Green Gain Hub only
+          setMsg('staffLoginMsg', `${escapeHtml(msg.replace(/^MARKET_ACCOUNT:\s*/, ''))}<br><a class="ggh-dlink" href="https://krit-pj.github.io/Green_Gain_Hub-KPP/">ไปที่ Green Gain Hub</a>`);
+        } else if (/ลงทะเบียน/.test(msg) && !/รอผู้ดูแล/.test(msg)) {
           setMsg('staffLoginMsg', `${escapeHtml(msg)}<br><button type="button" class="ggh-dlink" data-to-sreg>ลงทะเบียนเจ้าหน้าที่</button>`);
           document.querySelector('#staffLoginMsg [data-to-sreg]').addEventListener('click', () => { document.getElementById('staffPanelRegister').phone.value = phone; selectTab(document.getElementById('staffAuth'), 'staff', 'register'); prepareStaffRegister(); });
         } else setMsg('staffLoginMsg', escapeHtml(msg));
@@ -366,9 +370,13 @@
       if (missing.length) return setMsg('staffRegMsg', 'กรุณากรอก: ' + escapeHtml(missing.join(', ')));
       const btn = document.getElementById('staffRegBtn');
       btn.disabled = true; btn.textContent = 'กำลังลงทะเบียน…'; setMsg('staffRegMsg', '');
-      try { await window.ABM_STAFF.register(input); location.href = 'admin.html'; }
-      catch (err) { setMsg('staffRegMsg', escapeHtml(err.message)); }
-      finally { btn.disabled = false; btn.textContent = 'ลงทะเบียนและเข้าใช้งาน'; }
+      try {
+        const r = await window.ABM_STAFF.register(input);
+        if (r && r.token) location.href = 'admin.html';
+        else { setMsg('staffRegMsg', '<strong>' + escapeHtml(r.message) + '</strong>'); e.target.reset(); }   // 1.2.0: waits for approval
+      }
+      catch (err) { setMsg('staffRegMsg', escapeHtml(String(err.message || '').replace(/^(MARKET_ACCOUNT|SSO_REQUIRED):\s*/, ''))); }
+      finally { btn.disabled = false; btn.textContent = 'ส่งคำขอลงทะเบียน'; }
     });
   </script>
 </body>

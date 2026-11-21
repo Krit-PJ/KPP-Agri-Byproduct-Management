@@ -39,7 +39,7 @@ sheets.buyers.rows.push(['B1', new Date(), 'โรงอัดฟาง', 'เ�
 
 /* ⑤ officer records */
 const T = ok(post('adminLoginServer', [{ username: 'krit', password: 'Super12345' }]), 'super').token;
-const D = ok(post('staffRegisterServer', [{ name: 'สมชาย ใจดี', phone: '0812345678', officeType: 'district', district: '6204', province: 'กำแพงเพชร' }]), 'district officer');
+const D = ok(env.officer({ name: 'สมชาย ใจดี', phone: '0812345678', officeType: 'district', district: '6204', province: 'กำแพงเพชร' }), 'district officer');
 const photo = [{ name: 'a.jpg', mime: 'image/jpeg', data: '/9j/4AAQ' }];
 const base = { date: '2026-11-10', photos: photo, confirmed: true };
 ok(post('residueSaveServer', [{ ...base, subdistrict: '620403', crop: 'rice', method: 'ไถกลบ', area: 100 }], D.token), 'plough 100');

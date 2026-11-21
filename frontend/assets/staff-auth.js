@@ -71,6 +71,7 @@
       try {
         const { id, result } = await S.staff(p, call);
         if (result.status === 'need_register') throw new Error('ไม่พบหมายเลขนี้ กรุณาลงทะเบียนเจ้าหน้าที่ก่อน');
+        if (result.status === 'market_user') throw new Error('MARKET_ACCOUNT: ' + result.message);
         sessionStorage.setItem(TOKEN_KEY, result.token);
         result.prevLogin = id && id.prevLogin;
         // shown once on the officer pages ("previous sign-in" + "not me"), also after the homepage popup redirects there
@@ -86,11 +87,14 @@
     return r;
   }
 
+  /** 1.2.0: registering proves the phone through the central identity (a one-use ticket), then waits for approval.
+      Returns { status: 'pending', message } — no session until a Mini Super Admin / Super Admin approves. */
   async function register(input) {
-    const r = await call('staffRegisterServer', input);
-    sessionStorage.setItem(TOKEN_KEY, r.token);
-    // 2.4.0: the new officer also gets the shared identity (Agri-Risk Map / Smart Agri)
-    if (window.ABM_SSO) await window.ABM_SSO.attach(input.phone, (p) => call('ssoProvisionServer', { phone: p }));
+    const S = window.ABM_SSO;
+    const body = Object.assign({}, input);
+    if (S && S.available()) body.ticket = await S.registerTicket(input);
+    const r = await call('staffRegisterServer', body);
+    if (r && r.token) sessionStorage.setItem(TOKEN_KEY, r.token);   // only when SSO is off (old behaviour)
     return r;
   }
 

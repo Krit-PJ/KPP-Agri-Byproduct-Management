@@ -19,9 +19,16 @@
 const SSO_IDP_DEFAULT = 'https://script.google.com/macros/s/AKfycbzAgSOxgQsaOx9bqBYM53KXFzk1QKsop46HZeINgtUzLXkaZTYYaZH3RZu0l-HDlN8TKA/exec';
 const SSO_AUD = 'ABM';
 
+/* 1.2.0 (21 พ.ย. 2569): ค่าเริ่มต้น required — เข้าและลงทะเบียนเจ้าหน้าที่ผ่านตัวตนกลางเท่านั้น (ยืนยันว่าเป็นเจ้าของเบอร์จริง)
+   Script Property SSO_MODE = optional | off ยังใช้ย้อนกลับได้ในกรณีฉุกเฉิน */
 function ggSsoMode_() {
-  const m = String(PropertiesService.getScriptProperties().getProperty('SSO_MODE') || 'optional').toLowerCase();
-  return ['off', 'optional', 'required'].indexOf(m) >= 0 ? m : 'optional';
+  const m = String(PropertiesService.getScriptProperties().getProperty('SSO_MODE') || 'required').toLowerCase();
+  return ['off', 'optional', 'required'].indexOf(m) >= 0 ? m : 'required';
+}
+/** 1.2.0: farmers and buyers (Green Gain Hub) use Green Gain Hub only. */
+const MARKET_ACCOUNT_MSG = 'MARKET_ACCOUNT: หมายเลขนี้ลงทะเบียนเป็นเกษตรกรหรือผู้รับซื้อ ใช้ได้เฉพาะ Green Gain Hub (ระบบนี้สำหรับเจ้าหน้าที่)';
+function ssoIsMarketUser_(person) {
+  return (person && person.scope === 'market') || gghIsMarketPhone_(person && person.phone);
 }
 function ggSsoIdp_() { return PropertiesService.getScriptProperties().getProperty('SSO_IDP_URL') || SSO_IDP_DEFAULT; }
 /** The old phone-only sign-in is closed when SSO is required. */
@@ -52,7 +59,12 @@ function ssoStaffLogin_(input) {
   input = input || {};
   const person = ssoRedeem_(input.ticket);
   const a = staffFindByPhone_(person.phone);
-  if (!a) return { status: 'need_register', phone: person.phone, name: cleanText_(person.fullName, 120) };
+  if (!a) {
+    // 1.2.0: no officer account here and the identity is a farmer/buyer → Green Gain Hub only (officers who already have an account still get in)
+    if (ssoIsMarketUser_(person)) return { status: 'market_user', message: MARKET_ACCOUNT_MSG.replace(/^MARKET_ACCOUNT:\s*/, '') };
+    return { status: 'need_register', phone: person.phone, name: cleanText_(person.fullName, 120) };
+  }
+  if (a.status === 'pending') throw new Error(STAFF_PENDING_MSG);
   if (a.status !== 'active') throw new Error('บัญชีนี้ถูกระงับ กรุณาติดต่อผู้ดูแลระบบ');
   if (a.role !== 'admin') throw new Error('บัญชี ' + roleLabel_(a.role) + ' เข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่าน');
   return adminIssueSession_(a, 'login', 'เข้าสู่ระบบด้วยตัวตนกลาง (SSO)');
