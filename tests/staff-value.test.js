@@ -28,10 +28,15 @@ bad(post('staffRegisterServer', [{ ...reg, province: 'ตาก' }]), /เฉพ
 bad(post('staffRegisterServer', [{ ...reg, province: 'ไม่มีจริง' }]), /จากรายการ/, 'province must be from the list');
 bad(post('staffRegisterServer', [{ ...reg, district: '' }]), /อำเภอ/, 'district office needs a district');
 bad(post('staffRegisterServer', [{ ...reg, phone: '0899999999', officeType: 'province', district: '' }]), /กลุ่ม/, 'provincial office needs a group');
-const D = ok(post('staffRegisterServer', [reg]), 'register district officer');
-assert(D.token && D.role === 'admin' && D.scope === 'district' && D.district === '6204' && D.officeLabel === 'สำนักงานเกษตรอำเภอขาณุวรลักษบุรี', 'registered and signed in at once: ' + JSON.stringify(D));
+// 1.2.0: a self-registration waits for approval (no session); see officer-approval.test.js
+const R0 = ok(post('staffRegisterServer', [reg]), 'register district officer');
+assert(R0.status === 'pending' && !R0.token && /รอผู้ดูแลระบบ/.test(R0.message), 'registration waits for approval: ' + JSON.stringify(R0));
+bad(post('staffLoginServer', [{ phone: '0812345678' }]), /รอผู้ดูแลระบบ/, 'pending account cannot sign in');
 bad(post('staffRegisterServer', [reg]), /ลงทะเบียนแล้ว/, 'one account per phone');
-const P = ok(post('staffRegisterServer', [{ name: 'วิไล อารักขา', phone: '0898887777', officeType: 'province', group: 'กลุ่มอารักขาพืช', province: 'จังหวัดกำแพงเพชร' }]), 'register provincial officer');
+env.sheets.admins.rows.find((x) => x[10] === '0812345678')[3] = 'active';   // approved
+const D = ok(post('staffLoginServer', [{ phone: '0812345678' }]), 'approved officer signs in');
+assert(D.token && D.role === 'admin' && D.scope === 'district' && D.district === '6204' && D.officeLabel === 'สำนักงานเกษตรอำเภอขาณุวรลักษบุรี', 'approved and signed in: ' + JSON.stringify(D));
+const P = ok(env.officer({ name: 'วิไล อารักขา', phone: '0898887777', officeType: 'province', group: 'กลุ่มอารักขาพืช', province: 'จังหวัดกำแพงเพชร' }), 'register provincial officer');
 assert(P.scope === 'province' && P.district === '' && /สำนักงานเกษตรจังหวัดกำแพงเพชร \(กลุ่มอารักขาพืช\)/.test(P.officeLabel), 'provincial officer scope: ' + JSON.stringify(P));
 
 /* ---------- phone sign-in ---------- */

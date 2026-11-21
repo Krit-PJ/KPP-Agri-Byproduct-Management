@@ -7,8 +7,8 @@
   <meta name="robots" content="noindex">
   <title>สำหรับเจ้าหน้าที่ · ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร กำแพงเพชร</title>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/dashboard.css?v=1.1.0">
-  <link rel="stylesheet" href="assets/admin.css?v=1.1.0">
+  <link rel="stylesheet" href="assets/dashboard.css?v=1.2.0">
+  <link rel="stylesheet" href="assets/admin.css?v=1.2.0">
 </head>
 <body class="adm">
   <header class="adm-top">
@@ -51,7 +51,8 @@
         <datalist id="regProvinces"></datalist>
         <p class="adm-muted adm-small">ข้อมูลนี้ใช้ระบุตัวผู้บันทึกข้อมูลในระบบและรายงานของหน่วยงานเท่านั้น</p>
         <p class="adm-error" id="regError" role="alert"></p>
-        <button type="submit" class="adm-btn adm-btn-primary" id="regBtn">ลงทะเบียนและเข้าใช้งาน</button>
+        <p class="adm-muted">ลงทะเบียนแล้วรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน · เกษตรกรและผู้รับซื้อใช้ Green Gain Hub</p>
+        <button type="submit" class="adm-btn adm-btn-primary" id="regBtn">ส่งคำขอลงทะเบียน</button>
       </form>
       <form id="loginForm" data-lpanel="admin" class="hidden" novalidate>
         <p class="adm-muted adm-small">สำหรับ Super Admin และ Mini Super Admin</p>
@@ -410,7 +411,8 @@
 
         <section class="adm-view hidden" data-panel="admins" aria-labelledby="adminsTitle">
           <h2 id="adminsTitle">เจ้าหน้าที่และผู้ดูแล</h2>
-          <p class="adm-muted">เจ้าหน้าที่ลงทะเบียนเองได้ที่หน้าเข้าสู่ระบบ (เข้าใช้ด้วยหมายเลขโทรศัพท์ และได้สิทธิ์ Admin เสมอ) ถ้าพบบัญชีที่ไม่ถูกต้อง ให้แก้ไขสถานะเป็น "ระงับ" ได้ทันที</p>
+          <p class="adm-muted">เจ้าหน้าที่ลงทะเบียนเองได้ที่หน้าเข้าสู่ระบบ (ยืนยันเบอร์ผ่านตัวตนกลาง ได้สิทธิ์ Admin เสมอ) และ<strong>ต้องรออนุมัติ</strong>ก่อนเข้าใช้งาน — กด "อนุมัติ" เมื่อตรวจแล้วว่าเป็นเจ้าหน้าที่จริง ถ้าพบบัญชีที่ไม่ถูกต้อง ให้แก้ไขสถานะเป็น "ระงับ" ได้ทันที · เกษตรกรและผู้รับซื้อ (Green Gain Hub) ลงทะเบียนที่นี่ไม่ได้</p>
+          <div class="adm-card hidden" id="adminsPending" role="status"></div>
           <p class="adm-muted"><strong>Super Admin</strong> จัดการได้ทุกส่วน <strong>Mini Super Admin</strong> จัดการได้เทียบเท่า Super Admin แต่จัดการบัญชี Super Admin ไม่ได้ <strong>Admin</strong> (ผู้บันทึกข้อมูล) บันทึกและเห็นข้อมูลเฉพาะอำเภอที่ลงทะเบียน</p>
           <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>ชื่อ</th><th>ชื่อผู้ใช้</th><th>โทรศัพท์</th><th>บทบาท</th><th>หน่วยงาน</th><th>สถานะ</th><th>เข้าใช้ล่าสุด</th><th><span class="sr-only">จัดการ</span></th></tr></thead><tbody id="adminsBody"></tbody></table></div>
           <form class="adm-form" id="adminForm" autocomplete="off">
@@ -453,11 +455,11 @@
   <div class="adm-toast" id="toast" role="status" hidden></div>
   <dialog class="adm-dialog" id="photoDialog" aria-label="ภาพถ่าย"><div class="adm-dialog-body" id="photoBody"></div><form method="dialog"><button class="adm-btn">ปิด</button></form></dialog>
 
-  <script src="assets/config.js?v=1.1.0"></script>
-  <script src="assets/crop-import.js?v=1.1.0"></script>
+  <script src="assets/config.js?v=1.2.0"></script>
+  <script src="assets/crop-import.js?v=1.2.0"></script>
   <script src="https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js"></script>
-  <script src="assets/sso-client.js?v=1.1.0"></script>
-  <script src="assets/staff-auth.js?v=1.1.0"></script>
-  <script src="assets/admin.js?v=1.1.0"></script>
+  <script src="assets/sso-client.js?v=1.2.0"></script>
+  <script src="assets/staff-auth.js?v=1.2.0"></script>
+  <script src="assets/admin.js?v=1.2.0"></script>
 </body>
 </html>

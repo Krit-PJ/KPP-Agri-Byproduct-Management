@@ -8,7 +8,13 @@
  *   - district office → one district; provincial office → records any district but edits only its own records
  *   - one account per phone; Mini Super Admin / Super Admin cannot sign in by phone
  *   - every registration and sign-in is written to admin_log; Super/Mini can disable an account at once
+ *
+ * 1.2.0 (21 พ.ย. 2569):
+ *   - registering needs a central-identity ticket (proves the phone is the person's) unless SSO_MODE = off
+ *   - farmers and buyers (Green Gain Hub) cannot register here — they use Green Gain Hub only
+ *   - a new registration waits for Mini Super Admin / Super Admin approval (status "pending") before it can sign in
  */
+const STAFF_PENDING_MSG = 'บัญชีนี้รอผู้ดูแลระบบ (Mini Super Admin / Super Admin) อนุมัติ จึงจะเข้าใช้งานได้'
 
 const STAFF_OFFICE_TYPES = { district: 'สำนักงานเกษตรอำเภอ', province: 'สำนักงานเกษตรจังหวัด' };
 const STAFF_DEFAULT_GROUPS = ['กลุ่มอารักขาพืช', 'กลุ่มยุทธศาสตร์และสารสนเทศ', 'กลุ่มส่งเสริมและพัฒนาการผลิต', 'กลุ่มส่งเสริมและพัฒนาเกษตรกร'];
@@ -50,7 +56,15 @@ function staffFindByPhone_(phone) {
 function staffRegister_(input) {
   input = input || {};
   const name = cleanText_(input.name, 120);
-  const phone = normalizePhone_(input.phone);
+  let phone = normalizePhone_(input.phone);
+  let person = null;
+  if (ggSsoMode_() !== 'off') {
+    if (!input.ticket) throw new Error('SSO_REQUIRED: กรุณาลงทะเบียนผ่านตัวตนกลาง (โหลดหน้าเว็บใหม่แล้วลองอีกครั้ง)');
+    person = ssoRedeem_(input.ticket);
+    if (phone && phone !== person.phone) throw new Error('หมายเลขโทรศัพท์ไม่ตรงกับตัวตนที่ยืนยัน');
+    phone = person.phone;
+  }
+  if (/^0\d{9}$/.test(phone) && ssoIsMarketUser_(person || { phone: phone })) throw new Error(MARKET_ACCOUNT_MSG);
   const officeType = String(input.officeType || '');
   const province = cleanText_(input.province, 60).replace(/^จังหวัด/, '');
   if (name.length < 4 || !/\s/.test(name)) throw new Error('กรุณากรอกชื่อและนามสกุล');
@@ -77,16 +91,17 @@ function staffRegister_(input) {
     while (findAdminRow_(username)) username = 'p' + phone + '-' + (++n);
     const now = new Date();
     const sh = sheetByName_('admins');
-    sh.appendRow([username, name, 'admin', 'active', '', '', now, 'ลงทะเบียนเอง', '', now, phone, district, officeType, group, province, 'self']);
+    sh.appendRow([username, name, 'admin', 'pending', '', '', now, 'ลงทะเบียนเอง', '', now, phone, district, officeType, group, province, 'self']);
     sh.getRange(sh.getLastRow(), 1).setNumberFormat('@');
     sh.getRange(sh.getLastRow(), 11, 1, 2).setNumberFormat('@');
     account = adminRecord_(username);
   } finally {
     lock.releaseLock();
   }
-  const out = adminIssueSession_(account, 'staff_register', 'ลงทะเบียนเจ้าหน้าที่: ' + name + ' ' + maskPhone_(phone) + ' ' + staffOfficeLabel_(account));
-  out.message = 'ลงทะเบียนแล้ว เข้าใช้งานได้ทันที ครั้งต่อไปเข้าสู่ระบบด้วยหมายเลขโทรศัพท์';
-  return out;
+  adminAudit_({ username: account.username, name: name, role: 'admin' }, 'staff_register',
+    'ลงทะเบียนเจ้าหน้าที่ (รออนุมัติ): ' + name + ' ' + maskPhone_(phone) + ' ' + staffOfficeLabel_(account) + (person ? ' · ยืนยันผ่านตัวตนกลาง' : ''));
+  return { status: 'pending', phone: phone,
+    message: 'ส่งคำขอลงทะเบียนแล้ว รอผู้ดูแลระบบ (Mini Super Admin / Super Admin) อนุมัติ เมื่ออนุมัติแล้วเข้าสู่ระบบด้วยหมายเลขโทรศัพท์นี้' };
 }
 
 function staffLogin_(input) {
@@ -98,8 +113,10 @@ function staffLogin_(input) {
   const fails = Number(cache.get(failKey) || 0);
   if (fails >= STAFF_MAX_FAILS) throw new Error('ลองเข้าสู่ระบบหลายครั้งเกินไป กรุณารอ 15 นาทีแล้วลองใหม่');
   const a = staffFindByPhone_(phone);
+  if (a && a.status === 'pending') throw new Error(STAFF_PENDING_MSG);
   if (!a || a.status !== 'active') {
     cache.put(failKey, String(fails + 1), ADMIN_LOCK_SECONDS);
+    if (!a && gghIsMarketPhone_(phone)) throw new Error(MARKET_ACCOUNT_MSG);
     throw new Error(a ? 'บัญชีนี้ถูกระงับ กรุณาติดต่อผู้ดูแลระบบ' : 'ไม่พบหมายเลขนี้ กรุณาลงทะเบียนเจ้าหน้าที่ก่อน');
   }
   if (a.role !== 'admin') throw new Error('บัญชี ' + roleLabel_(a.role) + ' เข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่าน');

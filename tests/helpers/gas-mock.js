@@ -47,7 +47,8 @@ function load(options) {
     Research_Refs: new Sheet('Research_Refs', [['ID', 'Type', 'SubType', 'BioRate', 'PriceMin', 'PriceMax', 'PriceAvg', 'Source']])
   }, options.sheets || {});
   // ABM 1.0.0: the farmers / buyers sheets stand for Green Gain Hub's data, served by a simulated feed (UrlFetchApp below).
-  const props = Object.assign(options.unlinked ? {} : { GGH_FEED_KEY: 'test-feed-key' }, options.props || {});
+  // 1.2.0: ABM defaults to SSO required; most tests run the old phone path (SSO_MODE off) — sso.test.js sets required itself.
+  const props = Object.assign(options.unlinked ? {} : { GGH_FEED_KEY: 'test-feed-key' }, { SSO_MODE: 'off' }, options.props || {});
   const feed = { calls: 0, down: false, key: 'test-feed-key', posts: [], market: null };   // key = what Green Gain Hub accepts
   const cache = new Map();
   let last = null;
@@ -116,7 +117,9 @@ function load(options) {
     }
     else out = { ok: true, data: Object.assign({ apiVersion: '2.6.0', generatedAt: new Date().toISOString(),
       farmers: { headers: HEADERS.farmers, rows: rows(sheets.farmers) }, buyers: { headers: HEADERS.buyers, rows: rows(sheets.buyers) } },
-      feed.market ? { market: feed.market } : {}) };
+      feed.market ? { market: feed.market } : {},
+      // 1.2.0: SHA-256 of Green Gain Hub user phones (farmers/buyers), as GGH 2.9.0 sends them
+      { marketPhones: (feed.marketUsers || []).map((ph) => crypto.createHash('sha256').update(ph, 'utf8').digest('hex')) }) };
     const text = JSON.stringify(out);
     return { getResponseCode: () => 200, getContentText: () => text };
   };
@@ -134,6 +137,15 @@ function load(options) {
     /** Market data changed in Green Gain Hub: drop the 5-minute feed cache (as if 5 minutes passed). */
     marketChanged() { fresh(); ['fresh', 'stale'].forEach((k) => cache.delete('gghfeed:v1:' + k + ':n')); },
     post(method, args, token) { fresh(); api.doPost({ postData: { contents: JSON.stringify({ method, args: args || [], token }) } }); return JSON.parse(last.body); },
+    /** 1.2.0: officer self-registration waits for approval — register, approve (as a Mini/Super would), then sign in by phone. */
+    officer(input) {
+      const post = (m, a, t) => { fresh(); api.doPost({ postData: { contents: JSON.stringify({ method: m, args: a || [], token: t }) } }); return JSON.parse(last.body); };
+      const r = post('staffRegisterServer', [input]);
+      if (!r.ok) return r;
+      const row = sheets.admins.rows.find((x, i) => i > 0 && String(x[10]).replace(/\D/g, '') === String(input.phone).replace(/\D/g, ''));
+      if (row) row[3] = 'active';
+      return post('staffLoginServer', [{ phone: input.phone }]);
+    },
     get(params) { fresh(); api.doGet({ parameter: params }); return last.mime === 'json' ? JSON.parse(last.body) : last.body; }
   };
 }

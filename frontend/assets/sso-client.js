@@ -39,6 +39,18 @@
     const result = await call('ssoStaffLoginServer', { ticket: t.ticket });
     return { id, result };
   }
+  /** 1.2.0: a one-use ticket for registering an officer — signs in to the central identity, or creates it (position เจ้าหน้าที่). */
+  async function registerTicket(input) {
+    if (!available()) throw new Error('ไม่สามารถเชื่อมต่อระบบตัวตนกลางได้ กรุณาโหลดหน้าเว็บใหม่แล้วลองอีกครั้ง');
+    let id;
+    try { id = await window.KPP_ID.login(input.phone, { system: AUD, aud: AUD }); }
+    catch (err) {
+      if (err.code !== 'not_found') throw err;
+      id = await window.KPP_ID.register({ phone: input.phone, fullName: input.name, position: 'เจ้าหน้าที่', affiliation: input.officeLabel || '',
+        provinceCode: '62', districtName: input.districtName || '', consent: true }, { system: AUD, aud: AUD });
+    }
+    return (await ticketOf(id)).ticket;
+  }
   /** After a new officer registration: give the person the shared identity too (best effort, never blocks). */
   async function attach(phone, provision) {
     if (!available()) return null;
@@ -60,5 +72,5 @@
     window.KPP_ID.bindPrev(box, (suspended) => { if (suspended) { if (onSuspended) onSuspended(); } else box.remove(); });
   }
   function logout() { if (available()) window.KPP_ID.logout(); }
-  window.ABM_SSO = { available, fallback, staff, attach, autoTicket, showPrev, logout, warm };
+  window.ABM_SSO = { available, fallback, staff, attach, autoTicket, showPrev, logout, warm, registerTicket };
 })();
