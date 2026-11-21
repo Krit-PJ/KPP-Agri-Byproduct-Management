@@ -424,6 +424,12 @@
       <dt>แปลงที่ซ่อน</dt><dd>${esc(rule.hiddenPlots)} แปลง${noDate ? ` (ไม่มีวันเก็บเกี่ยว ${esc(noDate)} แปลง)` : ''}</dd></dl>`;
   }
   async function loadGghRule() {
+    // 1.2.1: only Super Admin changes the Green Gain Hub rule; Mini Super Admin sees it read-only
+    const canEdit = state.me.role === 'super';
+    const f = $('gghRuleForm');
+    f.hideAfterHarvestDays.disabled = !canEdit;
+    f.querySelector('[type="submit"]').hidden = !canEdit;
+    $('gghRuleSuperOnly').classList.toggle('hidden', canEdit);
     try { const r = await call('gghMarketRuleServer'); showGghRule(r.rule); }
     catch (err) { $('gghRuleStatus').innerHTML = `<p class="adm-muted">อ่านค่าจาก Green Gain Hub ไม่ได้: ${esc(err.message)}</p>`; }
   }
