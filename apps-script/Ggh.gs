@@ -254,6 +254,13 @@ function gghPinReset_(input, s) {
   return { status: 'success', phone: r.phone || (phone.slice(0, 3) + 'xxxx' + phone.slice(7)) };
 }
 
+/** 1.3.0 — run from the editor: confirms the executive report (Green Gain Hub 3.2.0 abm_report) works. Numbers only, no names. */
+function verifyGghReport() {
+  const d = gghExecReport_('62', true), x = d.summary;
+  return 'PASS: Green Gain Hub report ' + (d.apiVersion || '') + ' ' + d.scope.name + ' — ' + x.plots + ' plot(s), ' + x.areaRai + ' rai, ' +
+    x.farmers + ' farmer(s), ' + x.buyers + ' buyer(s), sales ' + x.salesCount + ' (' + x.salesBaht + ' baht), ' + d.areas.length + ' district(s)';
+}
+
 /** Run from the editor: confirms the feed works. */
 function verifyGghFeed() {
   const d = gghFeed_(true);
