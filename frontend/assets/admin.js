@@ -430,6 +430,7 @@
     f.hideAfterHarvestDays.disabled = !canEdit;
     f.querySelector('[type="submit"]').hidden = !canEdit;
     $('gghRuleSuperOnly').classList.toggle('hidden', canEdit);
+    $('gghPinForm').classList.toggle('hidden', !canEdit);   // 1.3.0
     try { const r = await call('gghMarketRuleServer'); showGghRule(r.rule); }
     catch (err) { $('gghRuleStatus').innerHTML = `<p class="adm-muted">อ่านค่าจาก Green Gain Hub ไม่ได้: ${esc(err.message)}</p>`; }
   }
@@ -442,6 +443,18 @@
         showGghRule(r.rule);
         setResult('gghRuleResult', `บันทึกแล้ว ตลาดแสดง ${r.rule.listedPlots} แปลง ซ่อน ${r.rule.hiddenPlots} แปลง`, true);
       } catch (err) { setResult('gghRuleResult', err.message, false); }
+    });
+  });
+
+  // 1.3.0: Super Admin clears a forgotten Green Gain Hub PIN (the user sets a new one at the next sign-in)
+  $('gghPinForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target; const btn = f.querySelector('[type="submit"]');
+    const phone = f.phone.value.replace(/\D/g, '');
+    if (!/^0\d{9}$/.test(phone)) { setResult('gghPinResult', 'กรุณากรอกหมายเลขโทรศัพท์ 10 หลัก', false); return; }
+    if (!window.confirm(`ล้าง PIN ของผู้ใช้ ${phone.slice(0, 3)}xxxx${phone.slice(7)}?\nผู้ใช้จะต้องตั้ง PIN ใหม่ตอนเข้าสู่ระบบครั้งถัดไป`)) return;
+    await busy(btn, 'กำลังล้าง…', async () => {
+      try { const r = await call('gghPinResetServer', { phone }); f.reset(); setResult('gghPinResult', `ล้าง PIN ของ ${r.phone} แล้ว แจ้งผู้ใช้ให้เข้าสู่ระบบแล้วตั้ง PIN ใหม่`, true); }
+      catch (err) { setResult('gghPinResult', err.message, false); }
     });
   });
 
@@ -559,7 +572,24 @@
     $('reportTypes').innerHTML = (c.types || []).map((t) => `<button type="button" role="radio" aria-checked="false" data-rtype="${esc(t.key)}">
       <b>${esc(t.title)}</b><span>${esc(t.desc)}</span></button>`).join('');
     $('reportTypes').querySelectorAll('[data-rtype]').forEach((b) => b.addEventListener('click', () => chooseType(b.dataset.rtype)));
+    fillGghProvinces();
     chooseType(c.district ? 'district' : (c.types.find((t) => t.key === 'province') ? 'province' : 'district'));
+  }
+  // 1.3.0: Green Gain Hub covers 77 provinces — Super Admin picks one (or all); others report Kamphaeng Phet only
+  async function fillGghProvinces() {
+    const sel = $('reportGghProvince'), g = rep.catalog.ggh || { provinceChoice: false, province: '62' };
+    sel.innerHTML = '<option value="62">กำแพงเพชร</option>';
+    sel.disabled = !g.provinceChoice;
+    if (!g.provinceChoice) return;
+    let list = [];
+    try {
+      const r = await fetch('/Green_Gain_Hub-KPP/geo/provinces.json', { cache: 'force-cache' });
+      if (r.ok) list = ((await r.json()).provinces || []).map((p) => ({ code: String(p.code), name: String(p.name) }));
+    } catch (err) { list = []; }
+    list = list.filter((p) => /^\d{2}$/.test(p.code) && p.code !== '62').sort((a, b) => a.name.localeCompare(b.name, 'th'));
+    sel.innerHTML = '<option value="62">กำแพงเพชร</option><option value="ALL">ทุกจังหวัด (สรุปรายจังหวัด)</option>' +
+      list.map((p) => `<option value="${esc(p.code)}">${esc(p.name)}</option>`).join('');
+    sel.value = g.province || '62';
   }
   function markType() { $('reportTypes').querySelectorAll('[data-rtype]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.rtype === rep.type))); }
   function chooseType(key) {
@@ -594,22 +624,30 @@
     $('reportBuild').disabled = !keys.length;
     $('reportPicked').textContent = `(เลือกไว้ ${keys.length} ส่วน)`;
     $('reportCropFields').classList.toggle('hidden', !keys.some((k) => k.startsWith('crops.')));
+    $('reportGghFields').classList.toggle('hidden', !keys.some((k) => k.startsWith('ggh.')));
   }
   function syncReportTitle() {
     const c = rep.catalog; if (!c) return;
     const sel = $('reportDistrict'), d = c.districts.find((x) => x.code === sel.value);
     const t = (c.types || []).find((x) => x.key === rep.type);
+    if (t && t.key === 'executive') {
+      const ps = $('reportGghProvince'), v = ps.value;
+      $('reportTitle').value = v === 'ALL' ? 'รายงานผู้บริหาร ตลาดวัสดุเหลือใช้ทางการเกษตร Green Gain Hub ทุกจังหวัด'
+        : `รายงานผู้บริหาร ตลาดวัสดุเหลือใช้ทางการเกษตร Green Gain Hub จังหวัด${(ps.selectedOptions[0] || {}).textContent || c.province}`;
+      return;
+    }
     const what = t && t.key === 'ghg' ? 'ภาคผนวกการคำนวณก๊าซเรือนกระจกจากการจัดการวัสดุเหลือใช้ทางการเกษตร' : t && t.key === 'register' ? 'ทะเบียนรายการบันทึกการจัดการวัสดุเหลือใช้ทางการเกษตร' : 'รายงานการจัดการวัสดุเหลือใช้ทางการเกษตร';
     $('reportTitle').value = `${what}${d ? ' อำเภอ' + d.name : ''} จังหวัด${c.province}`;
   }
   $('reportDistrict').addEventListener('change', syncReportTitle);
+  $('reportGghProvince').addEventListener('change', syncReportTitle);
   $('reportCrop').addEventListener('change', fillAsOf);
 
   $('reportForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const f = e.target;
     const input = { title: f.title.value.trim(), sections: chosenSections(), cropKey: f.cropKey.value, asOf: Number(f.asOf.value) || undefined,
-      fy: Number($('reportFy').value) || undefined, district: $('reportDistrict').value,
+      fy: Number($('reportFy').value) || undefined, district: $('reportDistrict').value, gghProvince: $('reportGghProvince').value || '62',
       unmaskPhones: !!(f.unmaskPhones && f.unmaskPhones.checked && !$('reportUnmaskWrap').classList.contains('hidden')) };
     busy($('reportBuild'), 'กำลังสร้างรายงาน…', async () => {
       try {

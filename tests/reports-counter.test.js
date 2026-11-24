@@ -45,7 +45,7 @@ const catA = ok(post('reportCatalogServer', [], A), 'catalog mini');
 const flat = (c) => Object.fromEntries(c.groups.flatMap((g) => g.sections.map((s) => [s.key, s.allowed])));
 assert(Object.values(flat(catA)).every(Boolean), 'mini super admin sees every section like super');
 const catD = ok(post('reportCatalogServer', [], D), 'catalog district');
-assert(catD.groups.length === 1 && catD.groups[0].key === 'residue' && catD.district === '6204' && catD.districts.length === 1 && !catD.crops.length, 'district admin gets only the residue group of the own district');
+assert(catD.groups.map((g) => g.key).join() === 'residue,ggh' && catD.district === '6204' && catD.districts.length === 1 && !catD.crops.length, 'district admin gets the residue group of the own district + 1.3.0 executive (Green Gain Hub, Kamphaeng Phet only)');
 assert(catA.crops.length === 1 && catA.crops[0].key === 'ข้าวนาปี|2569/70', 'catalog must list imported crops');
 const catS = ok(post('reportCatalogServer', [], T), 'catalog super');
 assert(Object.values(flat(catS)).every(Boolean), 'super must see every section');

@@ -18,6 +18,7 @@ Web App (`/exec`) ของโปรเจกต์ Apps Script **ABM — Agri B
 ## 1.1.0: ระยะเวลาแสดงแปลงบนตลาด Green Gain Hub
 
 - RPC `gghMarketRuleServer()` / `gghMarketRuleSaveServer({hideAfterHarvestDays})` (Super/Mini) → POST `{action:'abm_config', key, hideAfterHarvestDays, by}` ไปที่ Green Gain Hub 2.8.0 · บันทึก `admin_log` action `ggh_market_rule`
+- 1.3.0: RPC `reportDataServer({sections:['ggh.*'], gghProvince})` → POST `{action:'abm_report', key, province}` (Green Gain Hub 3.2.0; `gghProvince` ใช้ได้เฉพาะ Super Admin: `ALL` หรือรหัสจังหวัด 2 หลัก ผู้อื่นเป็น `62` เสมอ) · RPC `gghPinResetServer({phone})` (Super Admin) → POST `{action:'abm_pin_reset', key, phone, by}` · บันทึก `admin_log` action `ggh_pin_reset` (เบอร์ปิดบัง)
 - `summary`: `totals.farmerPlots` = แปลงที่แสดงบนตลาด, `totals.hiddenPlots`, `listing: {hideAfterHarvestDays, startDate}`
 
 ## 1.0.0: แยกจาก Green Gain Hub
