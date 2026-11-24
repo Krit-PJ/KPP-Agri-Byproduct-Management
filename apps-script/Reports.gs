@@ -44,7 +44,14 @@ const REPORT_GROUPS = [
     { key: 'visits.daily', title: 'รายวัน (90 วันล่าสุด)' }] },
   { key: 'audit', title: 'ฉ. ประวัติการนำเข้าและบันทึกการใช้งาน', sections: [
     { key: 'audit.imports', title: 'ประวัติการนำเข้าข้อมูลเพาะปลูก' },
-    { key: 'audit.log', title: 'บันทึกการใช้งานผู้ดูแล (200 รายการล่าสุด)', role: 'mini' }] }
+    { key: 'audit.log', title: 'บันทึกการใช้งานผู้ดูแล (200 รายการล่าสุด)', role: 'mini' }] },
+  // 1.3.0: executive report from Green Gain Hub (no names or phones; facts apart from estimates; costs are not collected)
+  { key: 'ggh', title: 'ช. รายงานผู้บริหาร: ตลาด Green Gain Hub', minRole: 'admin', sections: [
+    { key: 'ggh.summary', title: 'สรุปผู้บริหาร: ผู้ลงทะเบียน พื้นที่ ชีวมวล ผู้รับซื้อ มูลค่าที่เป็นไปได้ และการขายจริง' },
+    { key: 'ggh.areas', title: 'รายพื้นที่ (รายอำเภอ หรือรายจังหวัดเมื่อเลือกทุกจังหวัด)' },
+    { key: 'ggh.materials', title: 'รายชนิดวัสดุเหลือใช้ทางการเกษตร: พื้นที่ ชีวมวล ราคาเสนอซื้อ การขายจริง' },
+    { key: 'ggh.harvest', title: 'ปฏิทินเก็บเกี่ยวของแปลงประกาศขาย (รายเดือน)' },
+    { key: 'ggh.sales', title: 'รายการขายจริงที่เกษตรกรบันทึก (ไม่มีชื่อและเบอร์โทร)' }] }
 ];
 const REPORT_MAX_SECTIONS = 20;
 // Four report types (2.2.0). scope: 'district' needs a district; 'any' follows the chosen scope.
@@ -56,7 +63,9 @@ const REPORT_TYPES = [
   { key: 'ghg', title: 'ภาคผนวกการคำนวณก๊าซเรือนกระจก', desc: 'สูตร ค่าพารามิเตอร์ แหล่งอ้างอิง และผลคำนวณรายชนิดพืช สำหรับผู้ตรวจสอบ', scope: 'any',
     sections: ['residue.ghgcrops', 'residue.params'] },
   { key: 'register', title: 'ทะเบียนรายการบันทึก', desc: 'รายการบันทึกทุกรายการ พิมพ์แนวนอน (พิกัดและสถานะข้อมูลอยู่ในไฟล์ Excel)', scope: 'any',
-    sections: ['residue.records'] }
+    sections: ['residue.records'] },
+  { key: 'executive', title: 'รายงานผู้บริหาร (ตลาด Green Gain Hub)', desc: 'รายได้จากการขายจริง มูลค่าที่เป็นไปได้ พื้นที่ ชีวมวล ผู้รับซื้อ และปฏิทินเก็บเกี่ยว แยกข้อมูลจริงกับค่าประมาณการ', scope: 'ggh',
+    sections: ['ggh.summary', 'ggh.areas', 'ggh.materials', 'ggh.harvest', 'ggh.sales'] }
 ];
 // Kept for older pages: the two presets of 2.1.0.
 const REPORT_PRESETS = { district: REPORT_TYPES[0].sections, province: REPORT_TYPES[1].sections };
@@ -99,8 +108,18 @@ function reportCatalog_(s) {
     district: residueDistrictScoped_(s) ? s.district : '',
     districts: Object.keys(names).sort().filter(function (c) { return !residueDistrictScoped_(s) || c === s.district; }).map(function (c) { return { code: c, name: names[c] }; }),
     province: provinceName_(),
-    office: officeName_()
+    office: officeName_(),
+    // 1.3.0: Green Gain Hub covers every province — Super Admin may pick any (or all); everyone else reports Kamphaeng Phet
+    ggh: { provinceChoice: s.role === 'super', province: '62' }
   };
+}
+
+/** 1.3.0: which Green Gain Hub province this officer may report on. */
+function gghReportProvince_(input, s) {
+  if (s.role !== 'super') return '62';
+  const want = input.gghProvince === undefined || input.gghProvince === '' ? '62' : gghProvinceCode_(input.gghProvince);
+  if (!want) throw new Error('จังหวัดของรายงาน Green Gain Hub ไม่ถูกต้อง');
+  return want;
 }
 
 function maskPhone_(v) {
@@ -133,6 +152,10 @@ function reportData_(input, s) {
   const ctx = { input: input, s: s, unmask: unmask, crop: null, asOf: null, residue: null };
   if (keys.some(function (k) { return k.indexOf('residue.') === 0; })) ctx.residue = residueReportCtx_(input, s);
 
+  if (keys.some(function (k) { return k.indexOf('ggh.') === 0; })) {
+    try { ctx.ggh = gghExecReport_(gghReportProvince_(input, s)); }
+    catch (err) { if (/จังหวัดของรายงาน/.test(String(err && err.message))) throw err; ctx.ggh = { error: cleanText_(err && err.message || err, 200) }; }
+  }
   if (keys.some(function (k) { return k.indexOf('crops.') === 0; })) {
     const list = getCropSummary_(false).crops || [];
     const want = String(input.cropKey || '');
@@ -154,7 +177,8 @@ function reportData_(input, s) {
   const contacts = keys.filter(function (k) { return k === 'market.plots' || k === 'market.buyers'; });
   adminAudit_(s, 'report_view', keys.join(', ') + (contacts.length ? (unmask ? ' [เบอร์เต็ม]' : ' [ปิดบังเบอร์]') : '') +
     (ctx.crop ? ' | ' + ctx.crop.crop + ' ' + ctx.crop.season + ' ณ ' + ctx.asOf : '') +
-    (ctx.residue ? ' | ปีงบ ' + ctx.residue.fy + (ctx.residue.district ? ' อ.' + ctx.residue.districtName : ' ทั้งจังหวัด') : ''));
+    (ctx.residue ? ' | ปีงบ ' + ctx.residue.fy + (ctx.residue.district ? ' อ.' + ctx.residue.districtName : ' ทั้งจังหวัด') : '') +
+    (ctx.ggh && ctx.ggh.scope ? ' | GGH ' + ctx.ggh.scope.name : ''));
   return {
     status: 'success',
     title: cleanText_(input.title, 150) || 'รายงานระบบศูนย์กลางเชื่อมโยงการจัดการวัสดุเหลือใช้ทางการเกษตร จังหวัด' + provinceName_(),
@@ -165,6 +189,7 @@ function reportData_(input, s) {
     residue: ctx.residue ? { fy: ctx.residue.fy, fyRange: fiscalRangeText_(ctx.residue.fy), district: ctx.residue.district, districtName: ctx.residue.districtName,
       params: ctx.residue.ctx.label.label } : null,
     phonesMasked: !unmask,
+    ggh: ctx.ggh && ctx.ggh.scope ? { scope: ctx.ggh.scope, generatedAt: ctx.ggh.generatedAt, apiVersion: ctx.ggh.apiVersion } : null,
     sections: sections
   };
 }
@@ -379,6 +404,109 @@ const REPORT_BUILDERS = {
     };
   }
 };
+
+/* ------------------------------ 1.3.0: executive report (Green Gain Hub) ------------------------------ */
+function gghUnavailable_(ctx) {
+  return { columns: [col_('message', 'หมายเหตุ')], rows: [{ message: 'ยังอ่านข้อมูลจาก Green Gain Hub ไม่ได้: ' + (ctx.ggh.error || '') }] };
+}
+function gghSubtitle_(g) {
+  return 'Green Gain Hub ' + g.scope.name + ' ข้อมูล ณ ' + dateTime_(new Date(g.generatedAt)) +
+    (g.listing && g.listing.hideAfterHarvestDays ? ' (นับแปลงที่แสดงบนตลาด ถึง ' + g.listing.hideAfterHarvestDays + ' วันหลังวันเก็บเกี่ยว)' : '');
+}
+function gghMonthText_(m) {
+  if (m === 'done') return 'เลยวันเก็บเกี่ยวแล้ว (ยังแสดงบนตลาด)';
+  if (m === 'none') return 'ไม่ระบุวันเก็บเกี่ยว';
+  const x = String(m).match(/^(\d{4})-(\d{2})$/);
+  return x ? ymText_(Number(x[1]) * 100 + Number(x[2])) : String(m);
+}
+const GGH_FACT = 'ข้อมูลจริง', GGH_EST = 'ประมาณการ';
+const GGH_BUILDERS = {
+  'ggh.summary': function (ctx) {
+    const g = ctx.ggh; if (g.error) return gghUnavailable_(ctx);
+    const x = g.summary;
+    const rows = [
+      { item: 'เกษตรกรที่ลงทะเบียน', value: x.usersFarmers, unit: 'ราย', kind: GGH_FACT },
+      { item: 'ผู้รับซื้อที่ลงทะเบียน', value: x.usersBuyers, unit: 'ราย', kind: GGH_FACT },
+      { item: 'เกษตรกรที่มีแปลงประกาศขาย', value: x.farmers, unit: 'ราย', kind: GGH_FACT },
+      { item: 'แปลงประกาศขาย (แสดงบนตลาดวันนี้)', value: x.plots, unit: 'แปลง', kind: GGH_FACT },
+      { item: 'พื้นที่ประกาศขาย', value: x.areaRai, unit: 'ไร่', kind: GGH_FACT },
+      { item: 'ชีวมวลที่คาดว่าจะได้', value: x.ton, unit: 'ตัน', kind: GGH_EST },
+      { item: 'จุดรับซื้อที่เปิดรับ', value: x.buyers, unit: 'จุด', kind: GGH_FACT },
+      { item: 'ความสามารถรับซื้อรวม', value: x.capacityTonPerDay, unit: 'ตัน/วัน', kind: GGH_FACT },
+      { item: 'มูลค่าที่เป็นไปได้ของแปลงประกาศขาย', value: x.potentialBaht, unit: 'บาท', kind: GGH_EST },
+      { item: 'การขายจริง (เกษตรกรกด "ขายแล้ว")', value: x.salesCount, unit: 'ครั้ง', kind: GGH_FACT },
+      { item: 'เกษตรกรที่ขายได้', value: x.salesFarmers, unit: 'ราย', kind: GGH_FACT },
+      { item: 'พื้นที่ที่ขายแล้ว', value: x.salesAreaRai, unit: 'ไร่', kind: GGH_FACT },
+      { item: 'ปริมาณที่ขายแล้ว', value: x.salesTon, unit: 'ตัน', kind: GGH_FACT },
+      { item: 'รายได้จากการขายจริง', value: x.salesBaht, unit: 'บาท', kind: GGH_FACT }
+    ];
+    if (x.provincesActive !== null && x.provincesActive !== undefined) rows.splice(2, 0, { item: 'จังหวัดที่มีการใช้งาน', value: x.provincesActive, unit: 'จังหวัด', kind: GGH_FACT });
+    return {
+      subtitle: gghSubtitle_(g),
+      columns: [col_('item', 'รายการ'), col_('value', 'ค่า', 'number'), col_('unit', 'หน่วย'), col_('kind', 'ประเภทข้อมูล')],
+      rows: rows,
+      notes: [g.notes.facts, g.notes.estimates, g.notes.sales, g.notes.costs]
+    };
+  },
+  'ggh.areas': function (ctx) {
+    const g = ctx.ggh; if (g.error) return gghUnavailable_(ctx);
+    const byProvince = g.scope.by === 'province';
+    const rows = g.areas.map(function (a) {
+      return { name: a.name, farmers: a.farmers, plots: a.plots, area: a.areaRai, ton: a.ton, buyers: a.buyers, capacity: a.capacityTonPerDay,
+        potential: a.potentialBaht, sales: a.salesCount, salesBaht: a.salesBaht };
+    });
+    const sum = function (k) { return round_(rows.reduce(function (t, r) { return t + (Number(r[k]) || 0); }, 0), 2); };
+    return {
+      subtitle: gghSubtitle_(g), landscape: true,
+      columns: [col_('name', byProvince ? 'จังหวัด' : 'อำเภอ'), col_('farmers', 'เกษตรกรผู้ขาย (ราย)', 'number'), col_('plots', 'แปลง', 'number'), col_('area', 'พื้นที่ (ไร่)', 'number'),
+        col_('ton', 'ชีวมวลประมาณการ (ตัน)', 'number'), col_('buyers', 'จุดรับซื้อ', 'number'), col_('capacity', 'รับซื้อได้ (ตัน/วัน)', 'number'),
+        col_('potential', 'มูลค่าที่เป็นไปได้ (บาท)', 'number'), col_('sales', 'ขายจริง (ครั้ง)', 'number'), col_('salesBaht', 'รายได้จริง (บาท)', 'number')],
+      rows: rows,
+      totals: { name: 'รวม', farmers: g.summary.farmers, plots: sum('plots'), area: sum('area'), ton: sum('ton'), buyers: sum('buyers'), capacity: sum('capacity'),
+        potential: sum('potential'), sales: sum('sales'), salesBaht: sum('salesBaht') },
+      notes: ['ยอดรวมเกษตรกรนับคนไม่ซ้ำ (หนึ่งคนอาจมีแปลงหลายอำเภอ)', 'ชีวมวลและมูลค่าที่เป็นไปได้เป็นค่าประมาณการ ไม่ใช่รายได้จริง']
+    };
+  },
+  'ggh.materials': function (ctx) {
+    const g = ctx.ggh; if (g.error) return gghUnavailable_(ctx);
+    return {
+      subtitle: gghSubtitle_(g), landscape: true,
+      columns: [col_('material', 'วัสดุเหลือใช้ทางการเกษตร'), col_('plots', 'แปลง', 'number'), col_('area', 'พื้นที่ (ไร่)', 'number'), col_('ton', 'ชีวมวลประมาณการ (ตัน)', 'number'),
+        col_('buyers', 'จุดรับซื้อ', 'number'), col_('price', 'ราคาเสนอซื้อเฉลี่ย (บาท/ไร่)', 'number'), col_('potential', 'มูลค่าที่เป็นไปได้ (บาท)', 'number'),
+        col_('salesTon', 'ขายจริง (ตัน)', 'number'), col_('salesBaht', 'รายได้จริง (บาท)', 'number')],
+      rows: g.materials.map(function (m) {
+        return { material: m.name, plots: m.plots, area: m.areaRai, ton: m.ton, buyers: m.buyers, price: m.avgPriceBahtPerRai === null || m.avgPriceBahtPerRai === undefined ? '' : m.avgPriceBahtPerRai,
+          potential: m.potentialBaht, salesTon: m.salesTon, salesBaht: m.salesBaht };
+      }),
+      notes: ['ราคาเสนอซื้อเฉลี่ย = ค่าเฉลี่ยราคาที่ผู้รับซื้อแจ้งไว้ ช่องว่าง = ยังไม่มีผู้รับซื้อแจ้งราคา']
+    };
+  },
+  'ggh.harvest': function (ctx) {
+    const g = ctx.ggh; if (g.error) return gghUnavailable_(ctx);
+    const rows = g.harvest.map(function (h) { return { month: gghMonthText_(h.month), plots: h.plots, area: h.areaRai, ton: h.ton }; });
+    return {
+      subtitle: gghSubtitle_(g),
+      columns: [col_('month', 'เดือนที่เก็บเกี่ยว'), col_('plots', 'แปลง', 'number'), col_('area', 'พื้นที่ (ไร่)', 'number'), col_('ton', 'ชีวมวลประมาณการ (ตัน)', 'number')],
+      rows: rows,
+      totals: { month: 'รวม', plots: g.summary.plots, area: g.summary.areaRai, ton: g.summary.ton },
+      notes: ['ใช้วางแผนรถอัดฟางและการรับซื้อล่วงหน้า วันเก็บเกี่ยวมาจากเกษตรกรกรอกเอง']
+    };
+  },
+  'ggh.sales': function (ctx) {
+    const g = ctx.ggh; if (g.error) return gghUnavailable_(ctx);
+    const byProvince = g.scope.by === 'province';
+    const rows = g.sales.map(function (x) { return { date: x.date, area: x.area, material: x.material, rai: x.areaRai, ton: x.ton, baht: x.baht, perTon: x.bahtPerTon }; });
+    return {
+      subtitle: gghSubtitle_(g), landscape: true,
+      columns: [col_('date', 'วันที่ขาย'), col_('area', byProvince ? 'จังหวัด' : 'อำเภอ'), col_('material', 'วัสดุเหลือใช้ทางการเกษตร'), col_('rai', 'พื้นที่ (ไร่)', 'number'),
+        col_('ton', 'ปริมาณ (ตัน)', 'number'), col_('baht', 'รายได้ (บาท)', 'number'), col_('perTon', 'ราคา (บาท/ตัน)', 'number')],
+      rows: rows.length ? rows : [{ date: '', area: 'ยังไม่มีการบันทึกการขาย', material: '', rai: '', ton: '', baht: '', perTon: '' }],
+      totals: rows.length ? { date: 'รวม', rai: g.summary.salesAreaRai, ton: g.summary.salesTon, baht: g.summary.salesBaht } : undefined,
+      notes: [g.notes.sales, 'ไม่แสดงชื่อและเบอร์โทรของผู้ขายหรือผู้ซื้อ' + (g.sales.length >= 500 ? ' แสดง 500 รายการล่าสุด (ยอดรวมนับทุกรายการ)' : '')]
+    };
+  }
+};
+Object.keys(GGH_BUILDERS).forEach(function (k) { REPORT_BUILDERS[k] = GGH_BUILDERS[k]; });
 
 function smartAgriUnavailable_(r) {
   return { columns: [col_('message', 'หมายเหตุ')], rows: [{ message: 'ยังดึงข้อมูลจากระบบรายงานอำเภอไม่ได้: ' + (r.error || '') }] };

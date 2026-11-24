@@ -12,6 +12,9 @@
  * set N here (POST {action:'abm_config', key, hideAfterHarvestDays}); the feed says which Open plots are hidden today
  * (ids and reasons only), so the dashboard counts the same plots buyers see.
  *
+ * 1.3.0: executive report (POST {action:'abm_report', key, province}) — Green Gain Hub 3.2.0 — and, Super Admin only, clearing a
+ * farmer's/buyer's 6-digit PIN (POST {action:'abm_pin_reset', key, phone, by}) — Green Gain Hub 3.1.0.
+ *
  * Script Properties (optional): GGH_API_URL (Green Gain Hub /exec), GGH_SPREADSHEET_ID (Green Gain Hub database).
  */
 const GGH_API_DEFAULT = 'https://script.google.com/macros/s/AKfycbylUGpPc7g9ODTrt-sodEwAa4G3mx8yP-Rve4lqllPyHGxpZkiuLkNcprQ3p_pVB7WT/exec';
@@ -213,6 +216,42 @@ function gghIsMarketPhone_(phone) {
   if (list.indexOf(h) >= 0) return true;
   // a farmer who registered a minute ago may not be in the cached copy yet: read once more
   try { const fresh = gghFeed_(true); return Array.isArray(fresh.marketPhones) && fresh.marketPhones.indexOf(h) >= 0; } catch (err) { return false; }
+}
+
+/* ------------------------------ 1.3.0: executive report and PIN reset (Green Gain Hub 3.1.0 / 3.2.0) ------------------------------ */
+const GGH_REPORT_CACHE = 'gghreport:v1:';
+const GGH_REPORT_SECONDS = 300;
+let GGH_REPORT_MEMO_ = {};
+
+/** 'ALL' or a two-digit province code; anything else → ''. */
+function gghProvinceCode_(v) {
+  const t = String(v === undefined || v === null ? '' : v).trim().toUpperCase();
+  if (t === 'ALL') return 'ALL';
+  return /^\d{2}$/.test(t) ? t : '';
+}
+
+/** Executive numbers from Green Gain Hub (abm_report): one province by district, or every province. Cached 5 minutes. */
+function gghExecReport_(province, force) {
+  const code = gghProvinceCode_(province) || '62';
+  if (!force && GGH_REPORT_MEMO_[code]) return GGH_REPORT_MEMO_[code];
+  if (!force) {
+    const hit = gghCacheGet_(GGH_REPORT_CACHE + code);
+    if (hit) return (GGH_REPORT_MEMO_[code] = JSON.parse(hit));
+  }
+  const data = gghPost_({ action: 'abm_report', province: code });
+  if (!data || !data.summary || !Array.isArray(data.areas)) throw new Error('Green Gain Hub ยังไม่รองรับรายงานผู้บริหาร (ต้องเป็นรุ่น 3.2.0 ขึ้นไป)');
+  gghCachePut_(GGH_REPORT_CACHE + code, JSON.stringify(data), GGH_REPORT_SECONDS);
+  return (GGH_REPORT_MEMO_[code] = data);
+}
+
+/** Super Admin clears a Green Gain Hub user's PIN (the user sets a new one at the next sign-in). Logged with a masked phone. */
+function gghPinReset_(input, s) {
+  input = input || {};
+  const phone = normalizePhone_(input.phone);
+  if (!/^0\d{9}$/.test(phone)) throw new Error('กรุณากรอกหมายเลขโทรศัพท์ 10 หลักของผู้ใช้ Green Gain Hub');
+  const r = gghPost_({ action: 'abm_pin_reset', phone: phone, by: (s && s.username) || '' });
+  adminAudit_(s, 'ggh_pin_reset', 'ล้าง PIN ผู้ใช้ Green Gain Hub ' + phone.slice(0, 3) + 'xxxx' + phone.slice(7));
+  return { status: 'success', phone: r.phone || (phone.slice(0, 3) + 'xxxx' + phone.slice(7)) };
 }
 
 /** Run from the editor: confirms the feed works. */
