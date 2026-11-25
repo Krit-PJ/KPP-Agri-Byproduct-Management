@@ -108,17 +108,11 @@ function load(options) {
     feed.calls++;
     let out;
     if (feed.down) return { getResponseCode: () => 503, getContentText: () => 'down' };
-    if (body.key !== feed.key || ['abm_feed', 'abm_config', 'abm_report', 'abm_pin_reset'].indexOf(body.action) < 0) out = { ok: false, error: 'Invalid feed key' };
+    if (body.key !== feed.key || ['abm_feed', 'abm_config', 'abm_report'].indexOf(body.action) < 0) out = { ok: false, error: 'Invalid feed key' };
     else if (body.action === 'abm_report') {
       // 1.3.0: Green Gain Hub 3.2.0 executive report (simulated: feed.report(body), set by the test)
       feed.posts.push(body);
       out = feed.report ? { ok: true, data: feed.report(body) } : { ok: false, error: 'Invalid action' };
-    }
-    else if (body.action === 'abm_pin_reset') {
-      // 1.3.0: Green Gain Hub 3.1.0 clears a user's PIN (simulated: feed.pinUsers)
-      feed.posts.push(body);
-      out = (feed.pinUsers || []).indexOf(body.phone) >= 0 ? { ok: true, data: { phone: body.phone.slice(0, 3) + 'xxxx' + body.phone.slice(7), reset: true, by: body.by } }
-        : { ok: false, error: 'ไม่พบหมายเลขโทรศัพท์นี้ใน Green Gain Hub' };
     }
     else if (body.action === 'abm_config') {
       // 1.1.0: Green Gain Hub 2.8.0 market listing rule (simulated: feed.market, set by the test)

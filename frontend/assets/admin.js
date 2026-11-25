@@ -430,7 +430,6 @@
     f.hideAfterHarvestDays.disabled = !canEdit;
     f.querySelector('[type="submit"]').hidden = !canEdit;
     $('gghRuleSuperOnly').classList.toggle('hidden', canEdit);
-    $('gghPinForm').classList.toggle('hidden', !canEdit);   // 1.3.0
     try { const r = await call('gghMarketRuleServer'); showGghRule(r.rule); }
     catch (err) { $('gghRuleStatus').innerHTML = `<p class="adm-muted">อ่านค่าจาก Green Gain Hub ไม่ได้: ${esc(err.message)}</p>`; }
   }
@@ -443,18 +442,6 @@
         showGghRule(r.rule);
         setResult('gghRuleResult', `บันทึกแล้ว ตลาดแสดง ${r.rule.listedPlots} แปลง ซ่อน ${r.rule.hiddenPlots} แปลง`, true);
       } catch (err) { setResult('gghRuleResult', err.message, false); }
-    });
-  });
-
-  // 1.3.0: Super Admin clears a forgotten Green Gain Hub PIN (the user sets a new one at the next sign-in)
-  $('gghPinForm').addEventListener('submit', async (e) => {
-    e.preventDefault(); const f = e.target; const btn = f.querySelector('[type="submit"]');
-    const phone = f.phone.value.replace(/\D/g, '');
-    if (!/^0\d{9}$/.test(phone)) { setResult('gghPinResult', 'กรุณากรอกหมายเลขโทรศัพท์ 10 หลัก', false); return; }
-    if (!window.confirm(`ล้าง PIN ของผู้ใช้ ${phone.slice(0, 3)}xxxx${phone.slice(7)}?\nผู้ใช้จะต้องตั้ง PIN ใหม่ตอนเข้าสู่ระบบครั้งถัดไป`)) return;
-    await busy(btn, 'กำลังล้าง…', async () => {
-      try { const r = await call('gghPinResetServer', { phone }); f.reset(); setResult('gghPinResult', `ล้าง PIN ของ ${r.phone} แล้ว แจ้งผู้ใช้ให้เข้าสู่ระบบแล้วตั้ง PIN ใหม่`, true); }
-      catch (err) { setResult('gghPinResult', err.message, false); }
     });
   });
 

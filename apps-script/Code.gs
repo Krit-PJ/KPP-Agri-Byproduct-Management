@@ -21,7 +21,7 @@
  *   ?api=v1&endpoint=health           Public version check
  *   POST {method,args,token}          Officer / admin API (Admin.gs)
  */
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.3.1';
 const APP_FEATURE = 'ABM_SPLIT';
 const APP_NAME = 'ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร';
 // Database: "Agri By-product Management KPP — Database (v1.0.0)" in Drive folder "10. Agri By-product Management".
