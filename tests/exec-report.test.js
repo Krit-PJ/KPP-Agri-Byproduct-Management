@@ -80,6 +80,20 @@ r = post('reportDataServer', [{ sections: ['ggh.summary', 'visits.monthly'], ggh
 check(r.ok && /ยังอ่านข้อมูลจาก Green Gain Hub ไม่ได้/.test(r.result.sections[0].rows[0].message) && r.result.sections[1].key === 'visits.monthly', 'GGH unavailable → note, report still built');
 feed.report = keep;
 
+/* 1.4.0: contact lists of plots / buyer points for another province (Super Admin), the feed asked per province */
+const pad = (r, n) => { const x = r.slice(); while (x.length < n) x.push(''); return x; };
+feed.provinces = { '50': {
+  farmers: [pad(['c1', '', 'สมศรี', 'ดอยดี', '0850000001', 'ข้าวนาปี', '', '2026-12-01', '15 ไร่', 18.79, 98.98, 'Open', '0850000001', 'ฟางข้าว', '', '', '', '', '50', 'เชียงใหม่', '5001', 'เมืองเชียงใหม่', '', ''], 24)],
+  buyers: [pad(['cb', '', 'โรงอัดฟาง', 'ดอย', '0860000001', 18.8, 99.0, 'ฟางข้าว', '', 500, '10', 'Active', '0860000001', 'ฟางข้าว', '', '', 'ALL', '50', 'เชียงใหม่', '5001', 'เมืองเชียงใหม่'], 21)] } };
+r = post('reportDataServer', [{ sections: ['market.plots', 'market.buyers'], gghProvince: '50', gghProvinceName: 'เชียงใหม่' }], T);
+check(r.ok && feed.feedProvinces.includes('50'), 'Super Admin: the feed is asked for province 50');
+const mp = r.result.sections.find((x) => x.key === 'market.plots'), mb = r.result.sections.find((x) => x.key === 'market.buyers');
+check(mp.rows.length === 1 && mp.rows[0].district === 'เมืองเชียงใหม่' && mp.subtitle === 'จังหวัดเชียงใหม่' && mb.rows[0].district === 'เมืองเชียงใหม่', 'district from Green Gain Hub, province named');
+check(/085x{3,}|0850000001|085-?xxx/.test(mp.rows[0].phone) && !/0850000001/.test(mp.rows[0].phone), 'phones still masked by default');
+check(!post('reportDataServer', [{ sections: ['market.plots'], gghProvince: 'ALL' }], T).ok, 'contact lists: one province at a time');
+r = post('reportDataServer', [{ sections: ['market.plots'], gghProvince: '50' }], M);
+check(r.ok && r.result.sections[0].subtitle === 'จังหวัดกำแพงเพชร', 'Mini Super Admin: always this office\'s province');
+
 /* 1.3.1: the Green Gain Hub PIN reset is gone (Green Gain Hub 3.3.0 signs in by phone number only) */
 check(!post('gghPinResetServer', [{ phone: '0891234567' }], T).ok, 'no PIN reset RPC, even for Super Admin');
 check(!fs.readFileSync(path.join(__dirname, '..', 'frontend', 'admin.html'), 'utf8').includes('gghPinForm'), 'no PIN reset form');

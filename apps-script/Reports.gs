@@ -152,6 +152,12 @@ function reportData_(input, s) {
   const ctx = { input: input, s: s, unmask: unmask, crop: null, asOf: null, residue: null };
   if (keys.some(function (k) { return k.indexOf('residue.') === 0; })) ctx.residue = residueReportCtx_(input, s);
 
+  // 1.4.0: contact lists of plots / buyer points may be read for another province (Super Admin); one province at a time
+  if (keys.some(function (k) { return k === 'market.plots' || k === 'market.buyers'; })) {
+    ctx.marketProvince = gghReportProvince_(input, s);
+    if (input.gghProvinceName && /^\d{2}$/.test(ctx.marketProvince)) GGH_PROVINCE_NAMES_[ctx.marketProvince] = cleanText_(input.gghProvinceName, 60);
+    if (ctx.marketProvince === 'ALL') throw new Error('รายการแปลงและจุดรับซื้อ (มีชื่อและเบอร์) เลือกได้ครั้งละ 1 จังหวัด');
+  }
   if (keys.some(function (k) { return k.indexOf('ggh.') === 0; })) {
     try { ctx.ggh = gghExecReport_(gghReportProvince_(input, s)); }
     catch (err) { if (/จังหวัดของรายงาน/.test(String(err && err.message))) throw err; ctx.ggh = { error: cleanText_(err && err.message || err, 200) }; }
@@ -178,7 +184,7 @@ function reportData_(input, s) {
   adminAudit_(s, 'report_view', keys.join(', ') + (contacts.length ? (unmask ? ' [เบอร์เต็ม]' : ' [ปิดบังเบอร์]') : '') +
     (ctx.crop ? ' | ' + ctx.crop.crop + ' ' + ctx.crop.season + ' ณ ' + ctx.asOf : '') +
     (ctx.residue ? ' | ปีงบ ' + ctx.residue.fy + (ctx.residue.district ? ' อ.' + ctx.residue.districtName : ' ทั้งจังหวัด') : '') +
-    (ctx.ggh && ctx.ggh.scope ? ' | GGH ' + ctx.ggh.scope.name : ''));
+    (ctx.ggh && ctx.ggh.scope ? ' | GGH ' + ctx.ggh.scope.name : '') + (ctx.marketProvince ? ' | รายการ จ.' + gghProvinceName_(ctx.marketProvince) : ''));
   return {
     status: 'success',
     title: cleanText_(input.title, 150) || 'รายงานระบบศูนย์กลางเชื่อมโยงการจัดการวัสดุเหลือใช้ทางการเกษตร จังหวัด' + provinceName_(),
@@ -345,11 +351,13 @@ const REPORT_BUILDERS = {
     };
   },
   'market.plots': function (ctx) {
-    const districts = districtList_();
-    const hidden = gghHiddenPlots_();   // 1.1.0: is the plot on the market today?
+    const pv = ctx.marketProvince || GGH_HOME_PROVINCE;
+    const districts = pv === GGH_HOME_PROVINCE ? districtList_() : [];
+    const hidden = gghHiddenPlots_(pv);   // 1.1.0: is the plot on the market today?
     const why = { no_harvest: 'ไม่แสดง (ไม่มีวันเก็บเกี่ยว)', after_harvest: 'ไม่แสดง (เลยวันเก็บเกี่ยวเกินกำหนด)' };
-    const rows = gghRows_('farmers').filter(function (r) { return String(r[11] || '').trim().toLowerCase() === 'open'; }).map(function (r) {
-      const d = hasCoordinates_(r[9], r[10]) ? districtForPoint_(Number(r[9]), Number(r[10]), districts) : null;
+    const rows = gghRows_('farmers', pv).filter(function (r) { return String(r[11] || '').trim().toLowerCase() === 'open'; }).map(function (r) {
+      // 1.4.0: Green Gain Hub 3.0.0 stores the district of every pin (farmers V); this office's map is the fallback
+      const d = text_(r[21]) ? { name: text_(r[21]) } : (districts.length && hasCoordinates_(r[9], r[10]) ? districtForPoint_(Number(r[9]), Number(r[10]), districts) : null);
       const h = hidden[text_(r[0])];
       return { onMarket: h ? (why[h] || 'ไม่แสดง') : 'แสดง', district: d ? d.name : 'ไม่ระบุ', name: (text_(r[2]) + ' ' + text_(r[3])).trim(), phone: ctx.unmask ? fullPhone_(r[4]) : maskPhone_(r[4]),
         crop: text_(r[5]), material: resolvedMaterial_(r[13], r[14], r[5]), area: text_(r[8]), areaRai: round_(parseAreaRai_(r[8]), 2),
@@ -358,21 +366,22 @@ const REPORT_BUILDERS = {
     return {
       columns: [col_('district', 'อำเภอ'), col_('name', 'ชื่อ-สกุล'), col_('phone', 'โทรศัพท์'), col_('crop', 'พืช'), col_('material', 'วัสดุเหลือใช้ทางการเกษตร'),
         col_('area', 'พื้นที่'), col_('areaRai', 'ไร่', 'number'), col_('harvest', 'วันเก็บเกี่ยว'), col_('onMarket', 'บนตลาด GGH'), col_('lat', 'ละติจูด', 'number', true), col_('lng', 'ลองจิจูด', 'number', true)],
-      rows: rows,
+      rows: rows, subtitle: 'จังหวัด' + gghProvinceName_(pv),
       notes: ['ข้อมูลส่วนบุคคล ใช้ตามวัตถุประสงค์ที่เกษตรกรให้ความยินยอมเท่านั้น' + (ctx.unmask ? '' : ' (ปิดบังเบอร์โทร)')]
     };
   },
   'market.buyers': function (ctx) {
-    const districts = districtList_();
-    const rows = gghRows_('buyers').filter(function (r) { return String(r[11] || '').trim().toLowerCase() === 'active'; }).map(function (r) {
-      const d = hasCoordinates_(r[5], r[6]) ? districtForPoint_(Number(r[5]), Number(r[6]), districts) : null;
+    const pv = ctx.marketProvince || GGH_HOME_PROVINCE;
+    const districts = pv === GGH_HOME_PROVINCE ? districtList_() : [];
+    const rows = gghRows_('buyers', pv).filter(function (r) { return String(r[11] || '').trim().toLowerCase() === 'active'; }).map(function (r) {
+      const d = text_(r[20]) ? { name: text_(r[20]) } : (districts.length && hasCoordinates_(r[5], r[6]) ? districtForPoint_(Number(r[5]), Number(r[6]), districts) : null);
       return { district: d ? d.name : 'ไม่ระบุ', name: (text_(r[2]) + ' ' + text_(r[3])).trim(), phone: ctx.unmask ? fullPhone_(r[4]) : maskPhone_(r[4]),
         material: resolvedMaterial_(r[13], r[14], r[7]), quality: text_(r[8]), price: maybeNumber_(r[9]), capacity: text_(r[10]), lat: maybeNumber_(r[5]), lng: maybeNumber_(r[6]) };
     }).sort(function (a, b) { return a.district.localeCompare(b.district, 'th'); });
     return {
       columns: [col_('district', 'อำเภอ'), col_('name', 'ชื่อจุดรับซื้อ'), col_('phone', 'โทรศัพท์'), col_('material', 'รับซื้อ'), col_('quality', 'คุณภาพ'),
         col_('price', 'ราคา (บาท/ไร่)', 'number'), col_('capacity', 'ปริมาณ (ตัน/วัน)'), col_('lat', 'ละติจูด', 'number', true), col_('lng', 'ลองจิจูด', 'number', true)],
-      rows: rows,
+      rows: rows, subtitle: 'จังหวัด' + gghProvinceName_(pv),
       notes: ['ข้อมูลส่วนบุคคล ใช้ตามวัตถุประสงค์ที่ผู้รับซื้อให้ความยินยอมเท่านั้น' + (ctx.unmask ? '' : ' (ปิดบังเบอร์โทร)')]
     };
   },

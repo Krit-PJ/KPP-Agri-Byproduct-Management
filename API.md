@@ -17,8 +17,8 @@ Web App (`/exec`) ของโปรเจกต์ Apps Script **ABM — Agri B
 
 ## 1.1.0: ระยะเวลาแสดงแปลงบนตลาด Green Gain Hub
 
-- RPC `gghMarketRuleServer()` / `gghMarketRuleSaveServer({hideAfterHarvestDays})` (Super/Mini) → POST `{action:'abm_config', key, hideAfterHarvestDays, by}` ไปที่ Green Gain Hub 2.8.0 · บันทึก `admin_log` action `ggh_market_rule`
-- 1.3.0: RPC `reportDataServer({sections:['ggh.*'], gghProvince})` → POST `{action:'abm_report', key, province}` (Green Gain Hub 3.2.0; `gghProvince` ใช้ได้เฉพาะ Super Admin: `ALL` หรือรหัสจังหวัด 2 หลัก ผู้อื่นเป็น `62` เสมอ) · 1.3.1: เอา `gghPinResetServer` (ล้าง PIN ผู้ใช้ GGH) ออก เพราะ Green Gain Hub 3.3.0 เข้าสู่ระบบด้วยเบอร์โทรอย่างเดียว
+- RPC `gghMarketRuleServer()` (Super/Mini, อ่านอย่างเดียวตั้งแต่ 1.4.0 — ตั้งค่าที่ Green Gain Hub 4.0.0) · เดิม `gghMarketRuleSaveServer({hideAfterHarvestDays})` → POST `{action:'abm_config', key, hideAfterHarvestDays, by}` ไปที่ Green Gain Hub 2.8.0 · บันทึก `admin_log` action `ggh_market_rule`
+- 1.3.0: RPC `reportDataServer({sections:['ggh.*'], gghProvince})` → POST `{action:'abm_report', key, province}` (Green Gain Hub 3.2.0; `gghProvince` ใช้ได้เฉพาะ Super Admin: `ALL` หรือรหัสจังหวัด 2 หลัก ผู้อื่นเป็น `62` เสมอ) · 1.4.0: `abm_feed` ส่ง `province` (หน้าแรก/สมดุล = 62; รายการแปลง/จุดรับซื้อในรายงานใช้ `gghProvince` ของ Super Admin ครั้งละ 1 จังหวัด) · 1.3.1: เอา `gghPinResetServer` (ล้าง PIN ผู้ใช้ GGH) ออก เพราะ Green Gain Hub 3.3.0 เข้าสู่ระบบด้วยเบอร์โทรอย่างเดียว
 - `summary`: `totals.farmerPlots` = แปลงที่แสดงบนตลาด, `totals.hiddenPlots`, `listing: {hideAfterHarvestDays, startDate}`
 
 ## 1.0.0: แยกจาก Green Gain Hub

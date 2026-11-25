@@ -411,11 +411,9 @@
     try { const r = await call('gghTestServer'); setResult('gghResult', r.result, /^PASS/.test(r.result)); } catch (err) { setResult('gghResult', err.message, false); }
   }));
 
-  /* 1.1.0: how long a plot stays on the Green Gain Hub market after harvest (Super / Mini Super Admin) */
+  /* 1.1.0: how long a plot stays on the Green Gain Hub market after harvest — 1.4.0: shown only (set in Green Gain Hub) */
   const thaiDay = (iso) => { const d = new Date(String(iso || '') + 'T00:00:00'); return isNaN(d) ? '' : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }); };
   function showGghRule(rule) {
-    const f = $('gghRuleForm');
-    f.hideAfterHarvestDays.value = rule.hideAfterHarvestDays;
     const noDate = (rule.hidden || []).filter((h) => h.reason === 'no_harvest').length;
     $('gghRuleStatus').innerHTML = `<dl class="adm-kv">
       <dt>ค่าปัจจุบัน</dt><dd>${rule.hideAfterHarvestDays ? `แสดงถึง <strong>${esc(rule.hideAfterHarvestDays)} วัน</strong> หลังวันเก็บเกี่ยว` : '<strong>แสดงทุกแปลง</strong> (ไม่ซ่อน)'}</dd>
@@ -424,26 +422,11 @@
       <dt>แปลงที่ซ่อน</dt><dd>${esc(rule.hiddenPlots)} แปลง${noDate ? ` (ไม่มีวันเก็บเกี่ยว ${esc(noDate)} แปลง)` : ''}</dd></dl>`;
   }
   async function loadGghRule() {
-    // 1.2.1: only Super Admin changes the Green Gain Hub rule; Mini Super Admin sees it read-only
-    const canEdit = state.me.role === 'super';
-    const f = $('gghRuleForm');
-    f.hideAfterHarvestDays.disabled = !canEdit;
-    f.querySelector('[type="submit"]').hidden = !canEdit;
-    $('gghRuleSuperOnly').classList.toggle('hidden', canEdit);
+    // 1.4.0: read-only — Green Gain Hub's Super Admin sets the rule in Green Gain Hub
     try { const r = await call('gghMarketRuleServer'); showGghRule(r.rule); }
     catch (err) { $('gghRuleStatus').innerHTML = `<p class="adm-muted">อ่านค่าจาก Green Gain Hub ไม่ได้: ${esc(err.message)}</p>`; }
   }
-  $('gghRuleForm').addEventListener('submit', async (e) => {
-    e.preventDefault(); const f = e.target; const btn = f.querySelector('[type="submit"]');
-    const days = Number(f.hideAfterHarvestDays.value);
-    await busy(btn, 'กำลังบันทึก…', async () => {
-      try {
-        const r = await call('gghMarketRuleSaveServer', { hideAfterHarvestDays: days });
-        showGghRule(r.rule);
-        setResult('gghRuleResult', `บันทึกแล้ว ตลาดแสดง ${r.rule.listedPlots} แปลง ซ่อน ${r.rule.hiddenPlots} แปลง`, true);
-      } catch (err) { setResult('gghRuleResult', err.message, false); }
-    });
-  });
+  $('gghRuleForm').addEventListener('submit', (e) => e.preventDefault());
 
   /* ---------------- admins (super) ---------------- */
   async function loadAdmins() {
@@ -611,7 +594,8 @@
     $('reportBuild').disabled = !keys.length;
     $('reportPicked').textContent = `(เลือกไว้ ${keys.length} ส่วน)`;
     $('reportCropFields').classList.toggle('hidden', !keys.some((k) => k.startsWith('crops.')));
-    $('reportGghFields').classList.toggle('hidden', !keys.some((k) => k.startsWith('ggh.')));
+    // 1.4.0: the province also applies to the contact lists of plots / buyer points (Super Admin)
+    $('reportGghFields').classList.toggle('hidden', !keys.some((k) => k.startsWith('ggh.') || k === 'market.plots' || k === 'market.buyers'));
   }
   function syncReportTitle() {
     const c = rep.catalog; if (!c) return;
@@ -634,7 +618,7 @@
     e.preventDefault();
     const f = e.target;
     const input = { title: f.title.value.trim(), sections: chosenSections(), cropKey: f.cropKey.value, asOf: Number(f.asOf.value) || undefined,
-      fy: Number($('reportFy').value) || undefined, district: $('reportDistrict').value, gghProvince: $('reportGghProvince').value || '62',
+      fy: Number($('reportFy').value) || undefined, district: $('reportDistrict').value, gghProvince: $('reportGghProvince').value || '62', gghProvinceName: ($('reportGghProvince').selectedOptions[0] || {}).textContent || '',
       unmaskPhones: !!(f.unmaskPhones && f.unmaskPhones.checked && !$('reportUnmaskWrap').classList.contains('hidden')) };
     busy($('reportBuild'), 'กำลังสร้างรายงาน…', async () => {
       try {
