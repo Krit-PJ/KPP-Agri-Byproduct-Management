@@ -5,18 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14532d">
   <meta name="robots" content="noindex">
-  <title>สำหรับเจ้าหน้าที่ · ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร กำแพงเพชร</title>
+  <title>สำหรับเจ้าหน้าที่ · ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร กำแพงเพชร</title>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/dashboard.css?v=1.4.0">
-  <link rel="stylesheet" href="assets/admin.css?v=1.4.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="assets/dashboard.css?v=1.5.0">
+  <link rel="stylesheet" href="assets/admin.css?v=1.5.0">
 </head>
 <body class="adm">
-  <header class="adm-top">
-    <a class="adm-brand" href="./">ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร <span id="admProvince">กำแพงเพชร</span><small>สำหรับเจ้าหน้าที่</small></a>
-    <div class="adm-user hidden" id="admUser">
-      <span id="admUserName"></span><span class="adm-role" id="admUserRole"></span><span class="adm-role" id="admUserDistrict" hidden></span>
-      <button type="button" class="adm-link" id="admAccountBtn">บัญชีของฉัน</button>
-      <button type="button" class="adm-link" id="admLogout">ออกจากระบบ</button>
+  <!-- 1.5.0: the same top bar as the homepage; "หน้าหลัก" always leads back to the dashboard. -->
+  <header class="abm-topbar adm-top">
+    <div class="abm-topbar-in">
+      <a class="abm-brand" href="./" aria-label="ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร หน้าหลัก">
+        <img src="https://doaenews.doae.go.th/wp-content/uploads/2021/03/DOAE-2.png" class="abm-brand-logo" alt="กรมส่งเสริมการเกษตร">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Seal_of_Kamphaeng_Phet_Province_%28color_version%2C_Thai_Fine_Art_Department%29.png" class="abm-brand-seal" alt="ตราจังหวัดกำแพงเพชร">
+        <span class="abm-brand-text">
+          <span class="abm-brand-title">ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร</span>
+          <span class="abm-brand-sub">ผลการจัดการวัสดุเหลือใช้ทางการเกษตรเทียบเป้าหมาย การเพาะปลูก และตลาดจาก Green Gain Hub เปิดดูได้โดยไม่ต้องเข้าสู่ระบบ เจ้าหน้าที่เข้าสู่ระบบเพื่อบันทึกผลและออกรายงาน</span>
+        </span>
+      </a>
+      <nav class="abm-topnav" aria-label="ทางลัด">
+        <a href="./" class="abm-topbtn" id="admHome"><i class="fa-solid fa-house" aria-hidden="true"></i><span>หน้าหลัก</span></a>
+        <a href="https://krit-pj.github.io/Green_Gain_Hub-KPP/" class="abm-topbtn" id="admGgh" rel="noopener"><i class="fa-solid fa-store" aria-hidden="true"></i><span>ตลาด Green Gain Hub</span></a>
+      </nav>
+    </div>
+    <div class="adm-userbar hidden" id="admUser">
+      <div class="adm-userbar-in abm-topuser">
+        <span class="adm-userbar-who"><i class="fa-solid fa-user" aria-hidden="true"></i> <span id="admUserName"></span></span><span class="adm-role" id="admUserRole"></span><span class="adm-role" id="admUserDistrict" hidden></span><span class="adm-role" id="admProvince">กำแพงเพชร</span>
+        <span class="adm-userbar-actions"><button type="button" class="adm-link" id="admAccountBtn">บัญชีของฉัน</button>
+        <button type="button" class="adm-link" id="admLogout">ออกจากระบบ</button></span>
+      </div>
     </div>
   </header>
 
@@ -96,74 +113,91 @@
             <th class="num">ยังไม่มีบันทึก (ไร่)</th><th class="num">ประกาศขาย (ไร่)</th><th class="num">ผู้รับซื้อ</th><th>ข้อสังเกต</th></tr></thead><tbody id="ovBody"></tbody><tfoot id="ovFoot"></tfoot></table></div>
           <details class="adm-card adm-ov-how"><summary>ตัวเลขแต่ละขั้นมาจากไหน</summary><ol id="ovHow"></ol></details>
         </section>
-        <!-- Residue record form -->
+        <!-- Residue record form — 1.5.0: four numbered steps (the order an officer fills them in the field), plain Thai labels,
+             a review box before saving. Field names and ids are unchanged, so the save/edit code and the API stay as they were. -->
         <section class="adm-view" data-panel="record" aria-labelledby="recTitle">
           <div class="adm-head">
-            <h2 id="recTitle">บันทึกการจัดการวัสดุเหลือใช้ทางการเกษตร</h2>
+            <div>
+              <h2 id="recTitle">บันทึกวัสดุเหลือใช้ทางการเกษตร</h2>
+              <p class="adm-muted" id="recScope"></p>
+            </div>
             <button type="button" class="adm-btn hidden" id="recCancelEdit">ยกเลิกการแก้ไข</button>
           </div>
-          <p class="adm-muted" id="recScope"></p>
-          <form class="adm-form adm-rec" id="recForm" novalidate>
-            <div class="adm-rec-grid">
-              <label>วันที่ดำเนินการ<input type="date" name="date" required></label>
-              <label id="recDistrictWrap">อำเภอ<select name="district" id="recDistrict"></select></label>
-              <label>ตำบล<select name="subdistrict" id="recSubdistrict" required></select></label>
+          <form class="adm-form adm-rec adm-rec2" id="recForm" novalidate>
+            <div class="adm-rec2-main">
+              <fieldset class="adm-step">
+                <legend><span class="adm-step-n" aria-hidden="true">1</span>สถานที่และวันที่</legend>
+                <div class="adm-rec-grid">
+                  <label>วันที่ดำเนินการ <span class="adm-req" aria-hidden="true">*</span><input type="date" name="date" required></label>
+                  <label id="recDistrictWrap">อำเภอ <span class="adm-req" aria-hidden="true">*</span><select name="district" id="recDistrict"></select></label>
+                  <label>ตำบล <span class="adm-req" aria-hidden="true">*</span><select name="subdistrict" id="recSubdistrict" required></select></label>
+                </div>
+              </fieldset>
+              <fieldset class="adm-step">
+                <legend><span class="adm-step-n" aria-hidden="true">2</span>ชนิดพืชและวิธีจัดการ</legend>
+                <p class="adm-step-label">ชนิดพืช <span class="adm-req" aria-hidden="true">*</span></p>
+                <div class="adm-chips" id="recCrops" role="radiogroup" aria-label="ชนิดพืช"></div>
+                <label class="hidden" id="recCropOtherWrap">ชื่อพืช<input name="cropOther" maxlength="60" placeholder="เช่น ถั่วเหลือง"></label>
+                <p class="adm-step-label">วิธีจัดการวัสดุเหลือใช้ทางการเกษตร <span class="adm-req" aria-hidden="true">*</span></p>
+                <div class="adm-chips" id="recMethods" role="radiogroup" aria-label="วิธีจัดการวัสดุเหลือใช้ทางการเกษตร"></div>
+                <label class="hidden" id="recMethodOtherWrap">ระบุวิธีจัดการ<input name="methodOther" maxlength="100" placeholder="เช่น ทำอาหารสัตว์"></label>
+              </fieldset>
+              <fieldset class="adm-step">
+                <legend><span class="adm-step-n" aria-hidden="true">3</span>ขนาดพื้นที่</legend>
+                <label class="adm-area">พื้นที่ที่จัดการ <span class="adm-req" aria-hidden="true">*</span>
+                  <span class="adm-unit-input"><input type="number" name="area" min="0.01" step="0.01" inputmode="decimal" required placeholder="0.00"><span>ไร่</span></span>
+                </label>
+                <p class="adm-rec-estimate" id="recEstimate" aria-live="polite"></p>
+              </fieldset>
+              <fieldset class="adm-step">
+                <legend><span class="adm-step-n" aria-hidden="true">4</span>หลักฐาน</legend>
+                <p class="adm-step-label">ภาพถ่ายการจัดการ <span class="adm-muted">(1–3 ภาพ)</span></p>
+                <label class="adm-photo-pick"><input type="file" id="recPhotoInput" accept="image/*" capture="environment" multiple><span><i class="fa-solid fa-camera" aria-hidden="true"></i> ถ่ายภาพหรือเลือกภาพ</span></label>
+                <div class="adm-photos" id="recPhotos"></div>
+                <p class="adm-step-label">พิกัดแปลง <span class="adm-muted">(ไม่บังคับ)</span></p>
+                <div class="adm-gps">
+                  <span id="recGps" class="adm-gps-text">ยังไม่มีพิกัด</span>
+                  <button type="button" class="adm-btn" id="recGpsBtn"><i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i> ดึงพิกัดปัจจุบัน</button>
+                  <button type="button" class="adm-btn hidden" id="recGpsClear">ล้างพิกัด</button>
+                </div>
+              </fieldset>
+              <details class="adm-step adm-rec-more" id="recSaleWrap">
+                <summary>การขายให้ผู้รับซื้อ <span class="adm-muted">(ไม่บังคับ)</span></summary>
+                <p class="adm-muted">กรอกเมื่อขายหรือนำวัสดุออกจากแปลงจริง ระบบจะคิดมูลค่าจากปริมาณนี้แทนค่าประมาณ</p>
+                <div class="adm-rec-grid">
+                  <label>ผู้รับซื้อในระบบ<select name="buyerId" id="recBuyer"></select></label>
+                  <label>ปริมาณที่ขายหรือนำออก<span class="adm-unit-input"><input type="number" name="soldTonnes" min="0" step="any" inputmode="decimal"><span>ตัน</span></span></label>
+                </div>
+              </details>
+              <details class="adm-step adm-rec-more" id="recCustomWrap">
+                <summary>ผลการชั่งน้ำหนักจากแปลงจริง <span class="adm-muted">(ไม่บังคับ สำหรับผู้ที่ชั่งหรือสำรวจ)</span></summary>
+                <p class="adm-muted">ถ้ากรอก ระบบจะคำนวณก๊าซเรือนกระจกจากค่านี้แทนค่ามาตรฐาน กรอกน้ำหนักแห้ง หรือกรอกน้ำหนักสดพร้อมสัดส่วนน้ำหนักแห้ง</p>
+                <div class="adm-rec-grid">
+                  <label>น้ำหนักแห้งต่อไร่<span class="adm-unit-input"><input type="number" name="mb" min="0" step="any" inputmode="decimal"><span>กก./ไร่</span></span></label>
+                  <label>หรือ น้ำหนักสดต่อไร่<span class="adm-unit-input"><input type="number" name="fresh" min="0" step="any" inputmode="decimal"><span>กก./ไร่</span></span></label>
+                  <label>สัดส่วนน้ำหนักแห้ง (0–1)<input type="number" name="dmf" min="0" max="1" step="any" inputmode="decimal" placeholder="เช่น 0.85"></label>
+                  <label>สัดส่วนที่ถูกเผาไหม้ถ้าเผา (0–1)<input type="number" name="cf" min="0" max="1" step="any" inputmode="decimal" placeholder="เว้นว่าง = ค่ามาตรฐาน"></label>
+                </div>
+                <label>แหล่งอ้างอิง / วิธีวัด<input name="reference" maxlength="200" placeholder="เช่น ชั่งน้ำหนักจากแปลงตัวอย่าง 3 จุด"></label>
+              </details>
+              <label class="adm-step-note">หมายเหตุ <span class="adm-muted">(ไม่บังคับ)</span><input name="note" maxlength="300"></label>
             </div>
-            <fieldset class="adm-rec-set">
-              <legend>ชนิดพืช</legend>
-              <div class="adm-chips" id="recCrops" role="radiogroup" aria-label="ชนิดพืช"></div>
-              <label class="hidden" id="recCropOtherWrap">ชื่อพืช<input name="cropOther" maxlength="60" placeholder="เช่น ถั่วเหลือง"></label>
-            </fieldset>
-            <fieldset class="adm-rec-set">
-              <legend>ประเภทการจัดการวัสดุเหลือใช้ทางการเกษตร</legend>
-              <div class="adm-chips" id="recMethods" role="radiogroup" aria-label="ประเภทการจัดการวัสดุเหลือใช้ทางการเกษตร"></div>
-              <label class="hidden" id="recMethodOtherWrap">ระบุวิธีจัดการ<input name="methodOther" maxlength="100" placeholder="เช่น ทำอาหารสัตว์"></label>
-            </fieldset>
-            <label>พื้นที่ที่จัดการวัสดุเหลือใช้ทางการเกษตร (ไร่)<input type="number" name="area" min="0.01" step="0.01" inputmode="decimal" required></label>
-            <p class="adm-rec-estimate" id="recEstimate" aria-live="polite"></p>
-            <fieldset class="adm-rec-set">
-              <legend>พิกัด <span class="adm-muted">(ไม่บังคับ)</span></legend>
-              <div class="adm-gps">
-                <span id="recGps" class="adm-gps-text">ยังไม่มีพิกัด</span>
-                <button type="button" class="adm-btn" id="recGpsBtn">ดึงพิกัดปัจจุบัน</button>
-                <button type="button" class="adm-btn hidden" id="recGpsClear">ล้างพิกัด</button>
+            <aside class="adm-rec2-side" aria-labelledby="recReviewTitle">
+              <div class="adm-review">
+                <h3 id="recReviewTitle">ตรวจสอบก่อนบันทึก</h3>
+                <dl class="adm-review-list" id="recReview" aria-live="polite"></dl>
+                <p class="adm-muted adm-review-who">ผู้บันทึก: <strong id="recRecorder"></strong></p>
+                <label class="adm-check adm-confirm-check"><input type="checkbox" name="confirmed"> ข้าพเจ้าตรวจสอบแล้วว่าข้อมูลถูกต้องตามที่ดำเนินการจริง</label>
+                <div class="adm-confirm"><button type="submit" class="adm-btn adm-btn-primary" id="recSave"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> บันทึกข้อมูล</button></div>
+                <div id="recResult" class="adm-result" role="status"></div>
               </div>
-            </fieldset>
-            <fieldset class="adm-rec-set">
-              <legend>ภาพถ่ายการจัดการวัสดุเหลือใช้ทางการเกษตร <span class="adm-muted">(1–3 ภาพ)</span></legend>
-              <label class="adm-photo-pick"><input type="file" id="recPhotoInput" accept="image/*" capture="environment" multiple><span>ถ่ายภาพหรือเลือกภาพ</span></label>
-              <div class="adm-photos" id="recPhotos"></div>
-            </fieldset>
-            <details class="adm-rec-more" id="recCustomWrap">
-              <summary>ข้อมูลชีวมวลจากพื้นที่จริง <span class="adm-muted">(ไม่บังคับ)</span></summary>
-              <p class="adm-muted">กรอกเมื่อมีการชั่งหรือสำรวจจริง ระบบจะคำนวณ GHG ด้วยค่านี้แทนค่ามาตรฐาน (Custom Mode)</p>
-              <div class="adm-rec-grid">
-                <label>วัสดุเหลือใช้ทางการเกษตรแห้งก่อนเผา (กก./ไร่)<input type="number" name="mb" min="0" step="any" inputmode="decimal"></label>
-                <label>หรือ น้ำหนักสด (กก./ไร่)<input type="number" name="fresh" min="0" step="any" inputmode="decimal"></label>
-                <label>สัดส่วนน้ำหนักแห้ง (0–1)<input type="number" name="dmf" min="0" max="1" step="any" inputmode="decimal"></label>
-                <label>Combustion Factor (0–1)<input type="number" name="cf" min="0" max="1" step="any" inputmode="decimal"></label>
-              </div>
-              <label>แหล่งอ้างอิง / วิธีวัด<input name="reference" maxlength="200" placeholder="เช่น ชั่งน้ำหนักจากแปลงตัวอย่าง 3 จุด"></label>
-            </details>
-            <details class="adm-rec-more" id="recSaleWrap">
-              <summary>ขายให้ผู้รับซื้อ / ปริมาณที่นำออกจริง <span class="adm-muted">(ไม่บังคับ)</span></summary>
-              <p class="adm-muted">ใช้เชื่อมรายการนี้กับตลาดวัสดุเหลือใช้ทางการเกษตร ถ้ากรอกปริมาณที่ขายหรือนำออกจริง ระบบจะใช้คิดมูลค่าแทนค่าประมาณ (ก๊าซเรือนกระจกคิดเท่าเดิม)</p>
-              <div class="adm-rec-grid">
-                <label>ผู้รับซื้อในระบบ<select name="buyerId" id="recBuyer"></select></label>
-                <label>ปริมาณที่ขายหรือนำออกจริง (ตัน)<input type="number" name="soldTonnes" min="0" step="any" inputmode="decimal"></label>
-              </div>
-            </details>
-            <label><span>หมายเหตุ <span class="adm-muted">(ไม่บังคับ)</span></span><input name="note" maxlength="300"></label>
-            <p class="adm-muted">ผู้บันทึกข้อมูล: <strong id="recRecorder"></strong></p>
-            <label class="adm-check adm-confirm-check"><input type="checkbox" name="confirmed"> ข้าพเจ้าตรวจสอบแล้วว่าข้อมูลถูกต้องตามที่ดำเนินการจริง</label>
-            <div class="adm-confirm"><button type="submit" class="adm-btn adm-btn-primary" id="recSave">บันทึกข้อมูล</button></div>
-            <div id="recResult" class="adm-result" role="status"></div>
+            </aside>
           </form>
         </section>
 
         <!-- Residue record list -->
         <section class="adm-view hidden" data-panel="records" aria-labelledby="recsTitle">
-          <h2 id="recsTitle">รายการบันทึก</h2>
+          <h2 id="recsTitle">สรุปผลการส่งเสริม</h2>
           <div class="adm-card adm-mini-balance hidden" id="recsBalance" aria-live="polite"></div>
           <form class="adm-filters" id="recsFilter">
             <label>ปีงบประมาณ<select name="fy" id="recsFy"></select></label>
@@ -173,7 +207,8 @@
             <label>ประเภทการจัดการ<select name="method" id="recsMethod"></select></label>
             <label class="adm-check"><input type="checkbox" name="mine"> เฉพาะที่ฉันบันทึก</label>
           </form>
-          <p class="adm-recs-sum" id="recsSum" aria-live="polite"></p>
+          <div class="adm-recs-sum" id="recsSum" aria-live="polite"></div>
+          <h3 class="adm-recs-head">รายการบันทึก</h3>
           <div class="adm-recs" id="recsList"></div>
         </section>
 
@@ -333,7 +368,7 @@
 
         <section class="adm-view hidden" data-panel="reports" aria-labelledby="repTitle">
           <div class="adm-report-form">
-            <h2 id="repTitle">รายงาน</h2>
+            <h2 id="repTitle">ออกรายงาน</h2>
             <p class="adm-muted">เลือกแบบรายงาน กดสร้างรายงาน แล้วพิมพ์ บันทึกเป็น PDF หรือดาวน์โหลด Excel/CSV ทุกครั้งที่ดูหรือส่งออกจะบันทึกในประวัติการใช้งาน</p>
             <form class="adm-form adm-form-wide" id="reportForm">
               <fieldset class="adm-rec-set">
@@ -457,11 +492,11 @@
   <div class="adm-toast" id="toast" role="status" hidden></div>
   <dialog class="adm-dialog" id="photoDialog" aria-label="ภาพถ่าย"><div class="adm-dialog-body" id="photoBody"></div><form method="dialog"><button class="adm-btn">ปิด</button></form></dialog>
 
-  <script src="assets/config.js?v=1.4.0"></script>
-  <script src="assets/crop-import.js?v=1.4.0"></script>
+  <script src="assets/config.js?v=1.5.0"></script>
+  <script src="assets/crop-import.js?v=1.5.0"></script>
   <script src="https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js"></script>
-  <script src="assets/sso-client.js?v=1.4.0"></script>
-  <script src="assets/staff-auth.js?v=1.4.0"></script>
-  <script src="assets/admin.js?v=1.4.0"></script>
+  <script src="assets/sso-client.js?v=1.5.0"></script>
+  <script src="assets/staff-auth.js?v=1.5.0"></script>
+  <script src="assets/admin.js?v=1.5.0"></script>
 </body>
 </html>

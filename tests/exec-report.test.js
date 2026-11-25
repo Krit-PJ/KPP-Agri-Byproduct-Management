@@ -98,4 +98,18 @@ check(r.ok && r.result.sections[0].subtitle === 'จังหวัดกำแ�
 check(!post('gghPinResetServer', [{ phone: '0891234567' }], T).ok, 'no PIN reset RPC, even for Super Admin');
 check(!fs.readFileSync(path.join(__dirname, '..', 'frontend', 'admin.html'), 'utf8').includes('gghPinForm'), 'no PIN reset form');
 
+/* 1.5.0: one-page executive summary (residue) — the default report type for every officer */
+c = post('reportCatalogServer', [], D).result;
+check(c.types[0].key === 'summary' && c.types[0].primary === true && c.types[0].sections.join() === 'residue.exec,residue.execmethods', 'summary type first and primary');
+r = post('reportDataServer', [{ sections: ['residue.exec', 'residue.execmethods'] }], T);
+check(r.ok, 'summary builds: ' + (r.error || ''));
+const ex = r.result.sections[0], em = r.result.sections[1];
+check(ex.kpis.length === 5 && ex.kpis.every((k) => k.label && k.unit !== undefined) && /ประมาณการ/.test(ex.kpis[1].label), 'five figures, estimates labelled');
+check(ex.rows.length === 11 && ex.columns.map((x) => x.key).join() === 'name,target,area,pct,gap,risk,status' && ex.totals.name === 'รวมทั้งจังหวัด', 'districts in one table with totals');
+check(ex.rows.every((x, i, a) => i === 0 || (a[i - 1].pct === '' ? 1e9 : a[i - 1].pct) <= (x.pct === '' ? 1e9 : x.pct)), 'districts ordered from the furthest behind');
+check(em.columns.map((x) => x.key).join() === 'method,area,share,n' && em.totals.method === 'รวม', 'types compact table');
+check(/ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร/.test(r.result.title), 'default title uses the system name');
+r = post('reportDataServer', [{ sections: ['residue.exec'] }], D);
+check(r.ok && r.result.sections[0].rows.length === 1 && r.result.sections[0].rows[0].name === 'ขาณุวรลักษบุรี', 'district recorder: own district only');
+
 console.log(`exec-report.test.js: ${n} checks passed`);

@@ -14,6 +14,8 @@
  */
 const REPORT_GROUPS = [
   { key: 'residue', title: 'ก. การจัดการวัสดุเหลือใช้ทางการเกษตรและก๊าซเรือนกระจก', minRole: 'admin', sections: [
+    { key: 'residue.exec', title: 'สรุปผู้บริหาร: ตัวเลขสำคัญ และรายอำเภอเรียงจากที่ต้องเร่ง' },
+    { key: 'residue.execmethods', title: 'สรุปผู้บริหาร: พื้นที่แยกตามวิธีจัดการ' },
     { key: 'residue.summary', title: 'สรุปภาพรวม (พื้นที่ เป้าหมาย ก๊าซเรือนกระจกที่ลดได้ มูลค่า)' },
     { key: 'residue.balance', title: 'สมดุลวัสดุเหลือใช้ทางการเกษตร: เก็บเกี่ยว ประกาศขาย ผู้รับซื้อ จัดการแล้ว คงเหลือ' },
     { key: 'residue.map', title: 'แผนที่ก๊าซเรือนกระจกที่ลดได้รายอำเภอ' },
@@ -56,6 +58,10 @@ const REPORT_GROUPS = [
 const REPORT_MAX_SECTIONS = 20;
 // Four report types (2.2.0). scope: 'district' needs a district; 'any' follows the chosen scope.
 const REPORT_TYPES = [
+  // 1.5.0: the default — one page an executive reads in a minute (figures against the target, districts from the furthest behind,
+  // area by management type, harvested area without a record). The longer types below stay for staff who need the detail.
+  { key: 'summary', title: 'สรุปผู้บริหาร (1 หน้า)', desc: 'ตัวเลขสำคัญเทียบเป้าหมาย อำเภอเรียงจากที่ต้องเร่ง แยกตามวิธีจัดการ และพื้นที่เก็บเกี่ยวที่ยังไม่มีบันทึก', scope: 'any', primary: true,
+    sections: ['residue.exec', 'residue.execmethods'] },
   { key: 'district', title: 'รายงานอำเภอ', desc: 'ผลการจัดการ เป้าหมาย สมดุลวัสดุเหลือใช้ทางการเกษตร รายตำบล และรายเจ้าหน้าที่ ของอำเภอเดียว', scope: 'district',
     sections: ['residue.summary', 'residue.balance', 'residue.methods', 'residue.subdistricts', 'residue.admins'] },
   { key: 'province', title: 'รายงานจังหวัด', desc: 'ภาพรวมทั้งจังหวัด แผนที่ รายอำเภอ สมดุลวัสดุเหลือใช้ทางการเกษตร และรายชนิดพืช', scope: 'province', minRole: 'mini',
@@ -68,7 +74,10 @@ const REPORT_TYPES = [
     sections: ['ggh.summary', 'ggh.areas', 'ggh.materials', 'ggh.harvest', 'ggh.sales'] }
 ];
 // Kept for older pages: the two presets of 2.1.0.
-const REPORT_PRESETS = { district: REPORT_TYPES[0].sections, province: REPORT_TYPES[1].sections };
+const REPORT_PRESETS = {
+  district: REPORT_TYPES.find(function (t) { return t.key === 'district'; }).sections,
+  province: REPORT_TYPES.find(function (t) { return t.key === 'province'; }).sections
+};
 
 function reportAllowed_(group, section, s) {
   const need = section.role || group.minRole || 'mini';
@@ -100,7 +109,7 @@ function reportCatalog_(s) {
     }),
     presets: REPORT_PRESETS,
     types: REPORT_TYPES.filter(function (t) { return adminLevel_(s.role) >= adminLevel_(t.minRole || 'admin'); }).map(function (t) {
-      return { key: t.key, title: t.title, desc: t.desc, scope: t.scope, sections: t.sections };
+      return { key: t.key, title: t.title, desc: t.desc, scope: t.scope, sections: t.sections, primary: !!t.primary };
     }),
     crops: crops,
     fy: currentFiscalYear_(),
@@ -187,7 +196,7 @@ function reportData_(input, s) {
     (ctx.ggh && ctx.ggh.scope ? ' | GGH ' + ctx.ggh.scope.name : '') + (ctx.marketProvince ? ' | รายการ จ.' + gghProvinceName_(ctx.marketProvince) : ''));
   return {
     status: 'success',
-    title: cleanText_(input.title, 150) || 'รายงานระบบศูนย์กลางเชื่อมโยงการจัดการวัสดุเหลือใช้ทางการเกษตร จังหวัด' + provinceName_(),
+    title: cleanText_(input.title, 150) || 'รายงาน' + APP_NAME + ' จังหวัด' + provinceName_(),
     office: officeName_(),
     generatedAt: dateTime_(new Date()),
     generatedBy: s.name + ' (' + roleLabel_(s.role) + ')',

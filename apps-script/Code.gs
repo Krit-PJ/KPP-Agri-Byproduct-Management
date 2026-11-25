@@ -1,5 +1,5 @@
 /**
- * ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร (Agri By-product Management, ABM) 1.0.0 — จังหวัดกำแพงเพชร
+ * ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร (Agri By-product Management, ABM) 1.0.0 — จังหวัดกำแพงเพชร
  * แยกจาก Green Gain Hub 2.5.0 (19 พ.ย. 2569): ระบบนี้เป็นของเจ้าหน้าที่และผู้บริหาร
  *   - บันทึกการจัดการวัสดุเหลือใช้ทางการเกษตร ภาพ เป้าหมายรายอำเภอ ก๊าซเรือนกระจก มูลค่า รายงาน
  *   - Dashboard ผู้บริหาร (สาธารณะ ข้อมูลรวมเท่านั้น)
@@ -21,9 +21,9 @@
  *   ?api=v1&endpoint=health           Public version check
  *   POST {method,args,token}          Officer / admin API (Admin.gs)
  */
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const APP_FEATURE = 'ABM_SPLIT';
-const APP_NAME = 'ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร';
+const APP_NAME = 'ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร';
 // Database: "Agri By-product Management KPP — Database (v1.0.0)" in Drive folder "10. Agri By-product Management".
 // Script Property SPREADSHEET_ID overrides this value when set.
 const DEFAULT_SPREADSHEET_ID = '1wTzRcRx3sCoUZD9ykFgl17WOGVw9BtVkVwqtAftyVU4';

@@ -78,9 +78,9 @@ assert(ok(post('residueBalanceServer', [{ fy: 2570 }], D.token), 'balance again'
 
 /* report types */
 const cat = ok(post('reportCatalogServer', [], D.token), 'catalog (Admin)');
-assert(cat.types.map((t) => t.key).join(',') === 'district,ghg,register,executive', 'Admin sees district, GHG appendix, register, executive (1.3.0): ' + cat.types.map((t) => t.key));
+assert(cat.types.map((t) => t.key).join(',') === 'summary,district,ghg,register,executive', 'Admin sees the one-page summary (1.5.0), district, GHG appendix, register, executive: ' + cat.types.map((t) => t.key));
 const catM = ok(post('reportCatalogServer', [], T), 'catalog (Super)');
-assert(catM.types.map((t) => t.key).join(',') === 'district,province,ghg,register,executive' && catM.types.every((t) => t.sections.length >= 1 && t.sections.length <= 6), 'five report types (1.3.0 executive) with at most 6 sections each');
+assert(catM.types.map((t) => t.key).join(',') === 'summary,district,province,ghg,register,executive' && catM.types.every((t) => t.sections.length >= 1 && t.sections.length <= 6) && catM.types[0].primary === true, 'six report types, the one-page summary first (1.5.0), at most 6 sections each');
 const allowed = new Set(catM.groups.flatMap((g) => g.sections.map((x) => x.key)));
 assert(catM.types.every((t) => t.sections.every((k) => allowed.has(k))), 'every type section exists');
 const rp = ok(post('reportDataServer', [{ sections: catM.types.find((t) => t.key === 'district').sections, fy: 2570, district: '6204' }], T), 'district report type');
