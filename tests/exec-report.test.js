@@ -1,5 +1,6 @@
-/* ABM 1.3.0: executive report from Green Gain Hub (abm_report) and Super-Admin-only PIN reset (abm_pin_reset).
+/* ABM 1.3.0: executive report from Green Gain Hub (abm_report). 1.3.1: the Green Gain Hub PIN reset is removed.
    Facts are labelled apart from estimates; costs are not collected; no names or phones; Super Admin alone picks the province. */
+const fs = require('fs'), path = require('path');
 const { load, Sheet, HEADERS } = require('./helpers/gas-mock');
 function assert(v, m) { if (!v) throw new Error(m); }
 let n = 0; const check = (v, m) => { n++; assert(v, m); };
@@ -79,16 +80,8 @@ r = post('reportDataServer', [{ sections: ['ggh.summary', 'visits.monthly'], ggh
 check(r.ok && /ยังอ่านข้อมูลจาก Green Gain Hub ไม่ได้/.test(r.result.sections[0].rows[0].message) && r.result.sections[1].key === 'visits.monthly', 'GGH unavailable → note, report still built');
 feed.report = keep;
 
-/* PIN reset: Super Admin only, masked in the log, Green Gain Hub refuses unknown phones */
-feed.pinUsers = ['0891234567'];
-check(!post('gghPinResetServer', [{ phone: '0891234567' }], M).ok, 'Mini Super Admin cannot reset a PIN');
-check(!post('gghPinResetServer', [{ phone: '0891234567' }], D).ok, 'Admin cannot reset a PIN');
-check(!post('gghPinResetServer', [{ phone: '12345' }], T).ok, 'bad phone refused before calling Green Gain Hub');
-r = post('gghPinResetServer', [{ phone: '089-123-4567' }], T);
-check(r.ok && r.result.phone === '089xxxx567' && feed.posts.at(-1).action === 'abm_pin_reset' && feed.posts.at(-1).phone === '0891234567' && feed.posts.at(-1).by === 'krit', 'reset sent with who did it');
-const logged = sheets.admin_log.rows.filter((x) => x[4] === 'ggh_pin_reset');
-check(logged.length === 1 && /089xxxx567/.test(logged[0][5]) && !/0891234567/.test(JSON.stringify(sheets.admin_log.rows)), 'logged with a masked phone only');
-r = post('gghPinResetServer', [{ phone: '0800000000' }], T);
-check(!r.ok && /ไม่พบหมายเลข/.test(r.error), 'unknown phone: Green Gain Hub refusal shown');
+/* 1.3.1: the Green Gain Hub PIN reset is gone (Green Gain Hub 3.3.0 signs in by phone number only) */
+check(!post('gghPinResetServer', [{ phone: '0891234567' }], T).ok, 'no PIN reset RPC, even for Super Admin');
+check(!fs.readFileSync(path.join(__dirname, '..', 'frontend', 'admin.html'), 'utf8').includes('gghPinForm'), 'no PIN reset form');
 
 console.log(`exec-report.test.js: ${n} checks passed`);

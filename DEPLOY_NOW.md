@@ -1,13 +1,13 @@
-# ABM 1.3.0 — ติดตั้งและ Deploy
+# ABM 1.3.1 — ติดตั้งและ Deploy
 
 | รายการ | ค่า |
 | --- | --- |
 | Apps Script | **ABM — Agri By-product Management KPP API** (`1ZRd2SmPDj6yKB3MuQe7tW1yOMfZwBFULjIDOCnN-hH-YcsqPT6CieYe8`) บัญชี noonoy.cmu |
-| Web App (เวอร์ชัน 5 = 1.3.0 รายงานผู้บริหาร GGH + ล้าง PIN · 4 = 1.2.1 เงื่อนไขตลาด GGH เฉพาะ Super Admin · 3 = 1.2.0 ยืนยันเบอร์ + รออนุมัติ · 2 = 1.1.0 ตลาด GGH · 1 = 1.0.0) | `AKfycby7nbXMQ3_WvA7y_Mp0DTE_wMX9eyiJQbfYBlpaQBOshpUyurOFgoM7MxWMN0wLvjkdqw` |
+| Web App (เวอร์ชัน 6 = 1.3.1 เอาการล้าง PIN GGH ออก · 5 = 1.3.0 รายงานผู้บริหาร GGH + ล้าง PIN · 4 = 1.2.1 เงื่อนไขตลาด GGH เฉพาะ Super Admin · 3 = 1.2.0 ยืนยันเบอร์ + รออนุมัติ · 2 = 1.1.0 ตลาด GGH · 1 = 1.0.0) | `AKfycby7nbXMQ3_WvA7y_Mp0DTE_wMX9eyiJQbfYBlpaQBOshpUyurOFgoM7MxWMN0wLvjkdqw` |
 | ฐานข้อมูล | Agri By-product Management KPP — Database (v1.0.0) `1wTzRcRx3sCoUZD9ykFgl17WOGVw9BtVkVwqtAftyVU4` |
 | โฟลเดอร์ Drive | 10. Agri By-product Management |
 | หน้าเว็บ | GitHub Pages จาก `frontend/` (Actions) |
-| ต้องใช้ | Agri-Risk Map 3.12.4+ (scope) · Green Gain Hub 3.2.0+ (feed + abm_config + marketPhones + abm_report + abm_pin_reset) · Agri-Risk Map 3.12.3+ (ตัวตนกลางรู้จัก `ABM`) |
+| ต้องใช้ | Agri-Risk Map 3.12.4+ (scope) · Green Gain Hub 3.2.0+ (feed + abm_config + marketPhones + abm_report) · Agri-Risk Map 3.12.3+ (ตัวตนกลางรู้จัก `ABM`) |
 
 ## ไฟล์ในโปรเจกต์ Apps Script (13 ไฟล์ + manifest)
 

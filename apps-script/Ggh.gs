@@ -12,8 +12,8 @@
  * set N here (POST {action:'abm_config', key, hideAfterHarvestDays}); the feed says which Open plots are hidden today
  * (ids and reasons only), so the dashboard counts the same plots buyers see.
  *
- * 1.3.0: executive report (POST {action:'abm_report', key, province}) — Green Gain Hub 3.2.0 — and, Super Admin only, clearing a
- * farmer's/buyer's 6-digit PIN (POST {action:'abm_pin_reset', key, phone, by}) — Green Gain Hub 3.1.0.
+ * 1.3.0: executive report (POST {action:'abm_report', key, province}) — Green Gain Hub 3.2.0.
+ * 1.3.1: the Green Gain Hub PIN reset is removed (Green Gain Hub 3.3.0 signs in by phone number only).
  *
  * Script Properties (optional): GGH_API_URL (Green Gain Hub /exec), GGH_SPREADSHEET_ID (Green Gain Hub database).
  */
@@ -218,7 +218,7 @@ function gghIsMarketPhone_(phone) {
   try { const fresh = gghFeed_(true); return Array.isArray(fresh.marketPhones) && fresh.marketPhones.indexOf(h) >= 0; } catch (err) { return false; }
 }
 
-/* ------------------------------ 1.3.0: executive report and PIN reset (Green Gain Hub 3.1.0 / 3.2.0) ------------------------------ */
+/* ------------------------------ 1.3.0: executive report (Green Gain Hub 3.2.0) ------------------------------ */
 const GGH_REPORT_CACHE = 'gghreport:v1:';
 const GGH_REPORT_SECONDS = 300;
 let GGH_REPORT_MEMO_ = {};
@@ -242,16 +242,6 @@ function gghExecReport_(province, force) {
   if (!data || !data.summary || !Array.isArray(data.areas)) throw new Error('Green Gain Hub ยังไม่รองรับรายงานผู้บริหาร (ต้องเป็นรุ่น 3.2.0 ขึ้นไป)');
   gghCachePut_(GGH_REPORT_CACHE + code, JSON.stringify(data), GGH_REPORT_SECONDS);
   return (GGH_REPORT_MEMO_[code] = data);
-}
-
-/** Super Admin clears a Green Gain Hub user's PIN (the user sets a new one at the next sign-in). Logged with a masked phone. */
-function gghPinReset_(input, s) {
-  input = input || {};
-  const phone = normalizePhone_(input.phone);
-  if (!/^0\d{9}$/.test(phone)) throw new Error('กรุณากรอกหมายเลขโทรศัพท์ 10 หลักของผู้ใช้ Green Gain Hub');
-  const r = gghPost_({ action: 'abm_pin_reset', phone: phone, by: (s && s.username) || '' });
-  adminAudit_(s, 'ggh_pin_reset', 'ล้าง PIN ผู้ใช้ Green Gain Hub ' + phone.slice(0, 3) + 'xxxx' + phone.slice(7));
-  return { status: 'success', phone: r.phone || (phone.slice(0, 3) + 'xxxx' + phone.slice(7)) };
 }
 
 /** 1.3.0 — run from the editor: confirms the executive report (Green Gain Hub 3.2.0 abm_report) works. Numbers only, no names. */
