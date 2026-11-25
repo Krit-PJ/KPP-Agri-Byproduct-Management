@@ -24,15 +24,15 @@
   const fmtBaht = (n) => (n === null || n === undefined ? '–' : fmt(n, Math.abs(n) < 100 ? 2 : 0));
   // 2.2.0 menus by task: Admin 4 items; Mini Super Admin / Super Admin 5 groups with sub-tabs.
   const UNIT = 'ตันคาร์บอนไดออกไซด์เทียบเท่า';
-  const VIEW_LABEL = { overview: 'ภาพรวม', record: 'บันทึกการจัดการ', records: 'รายการบันทึก', import: 'นำเข้าข้อมูลเพาะปลูก', history: 'ข้อมูลเพาะปลูกที่นำเข้าแล้ว',
-    reports: 'รายงาน', admins: 'เจ้าหน้าที่และผู้ดูแล', log: 'ประวัติการใช้งาน', targets: 'เป้าหมายและวิธีจัดการ', ghg: 'ราคาและค่าคำนวณ',
+  const VIEW_LABEL = { overview: 'ภาพรวม', record: 'บันทึกวัสดุเหลือใช้ทางการเกษตร', records: 'สรุปผลการส่งเสริม', import: 'นำเข้าข้อมูลเพาะปลูก', history: 'ข้อมูลเพาะปลูกที่นำเข้าแล้ว',
+    reports: 'ออกรายงาน', admins: 'เจ้าหน้าที่และผู้ดูแล', log: 'ประวัติการใช้งาน', targets: 'เป้าหมายและวิธีจัดการ', ghg: 'ราคาและค่าคำนวณ',
     crops: 'ชนิดพืชในทะเบียน', market: 'ตลาด Green Gain Hub', api: 'เชื่อมต่อระบบอื่น', account: 'บัญชีของฉัน' };
   const MENU = {
     admin: [{ key: 'record', views: ['record'] }, { key: 'records', views: ['records'] }, { key: 'reports', views: ['reports'] }, { key: 'account', views: ['account'] }],
     mini: [
       { key: 'overview', label: 'ภาพรวม', views: ['overview'] },
       { key: 'data', label: 'ข้อมูลการจัดการ', views: ['records', 'record', 'import', 'history'] },
-      { key: 'reports', label: 'รายงาน', views: ['reports'] },
+      { key: 'reports', label: 'ออกรายงาน', views: ['reports'] },
       { key: 'users', label: 'ผู้ใช้งาน', views: ['admins', 'log'] },
       { key: 'settings', label: 'ตั้งค่า', views: ['targets', 'ghg', 'crops', 'market', 'api'] }
     ]
@@ -72,6 +72,9 @@
     const old = btn.textContent; btn.disabled = true; btn.textContent = label;
     try { return await fn(); } finally { btn.disabled = false; btn.textContent = old; }
   }
+
+  // 1.5.0: the market link in the top bar follows ABM_CONFIG.GGH_URL, as on the homepage.
+  (function marketLink() { const u = window.ABM_CONFIG && window.ABM_CONFIG.GGH_URL; const a = document.getElementById('admGgh'); if (u && a) a.href = u; })();
 
   /* ---------------- auth ---------------- */
   function signOut(msg) {
@@ -539,11 +542,15 @@
         `${esc(x.title)}${x.superOnly ? ' <span class="adm-badge disabled">Mini/Super Admin</span>' : ''}</label>`).join('') + '</fieldset>').join('');
     $('reportSections').addEventListener('change', () => { rep.type = ''; markType(); syncReportForm(); syncReportTitle(); });
     // 2.2.0: four report types instead of a long list (the list stays under "ปรับแต่ง").
-    $('reportTypes').innerHTML = (c.types || []).map((t) => `<button type="button" role="radio" aria-checked="false" data-rtype="${esc(t.key)}">
-      <b>${esc(t.title)}</b><span>${esc(t.desc)}</span></button>`).join('');
+    // 1.5.0: the one-page executive summary comes first and is chosen by default; the longer types sit under "รายงานอื่น".
+    const typeBtn = (t) => `<button type="button" role="radio" aria-checked="false" data-rtype="${esc(t.key)}" class="${t.primary ? 'is-primary' : ''}">
+      <b>${esc(t.title)}</b><span>${esc(t.desc)}</span></button>`;
+    const types = c.types || [], main = types.filter((t) => t.primary), rest = types.filter((t) => !t.primary);
+    $('reportTypes').innerHTML = main.map(typeBtn).join('') + (rest.length ? `<p class="adm-rtypes-more">รายงานอื่น</p>` + rest.map(typeBtn).join('') : '');
     $('reportTypes').querySelectorAll('[data-rtype]').forEach((b) => b.addEventListener('click', () => chooseType(b.dataset.rtype)));
     fillGghProvinces();
-    chooseType(c.district ? 'district' : (c.types.find((t) => t.key === 'province') ? 'province' : 'district'));
+    const first = (c.types || []).find((t) => t.primary);
+    chooseType(first ? first.key : c.district ? 'district' : (c.types.find((t) => t.key === 'province') ? 'province' : 'district'));
   }
   // 1.3.0: Green Gain Hub covers 77 provinces — Super Admin picks one (or all); others report Kamphaeng Phet only
   async function fillGghProvinces() {
@@ -607,7 +614,7 @@
         : `รายงานผู้บริหาร ตลาดวัสดุเหลือใช้ทางการเกษตร Green Gain Hub จังหวัด${(ps.selectedOptions[0] || {}).textContent || c.province}`;
       return;
     }
-    const what = t && t.key === 'ghg' ? 'ภาคผนวกการคำนวณก๊าซเรือนกระจกจากการจัดการวัสดุเหลือใช้ทางการเกษตร' : t && t.key === 'register' ? 'ทะเบียนรายการบันทึกการจัดการวัสดุเหลือใช้ทางการเกษตร' : 'รายงานการจัดการวัสดุเหลือใช้ทางการเกษตร';
+    const what = t && t.key === 'summary' ? 'สรุปผู้บริหาร การใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร' : t && t.key === 'ghg' ? 'ภาคผนวกการคำนวณก๊าซเรือนกระจกจากการจัดการวัสดุเหลือใช้ทางการเกษตร' : t && t.key === 'register' ? 'ทะเบียนรายการบันทึกการจัดการวัสดุเหลือใช้ทางการเกษตร' : 'รายงานการจัดการวัสดุเหลือใช้ทางการเกษตร';
     $('reportTitle').value = `${what}${d ? ' อำเภอ' + d.name : ''} จังหวัด${c.province}`;
   }
   $('reportDistrict').addEventListener('change', syncReportTitle);
@@ -653,6 +660,7 @@
       </header>` + d.sections.map((sec) => `<section class="adm-report-sec${sec.landscape ? ' is-landscape' : ''}">
         <h2>${esc(sec.group)}: ${esc(sec.title)}</h2>
         ${sec.subtitle ? `<p class="adm-muted">${esc(sec.subtitle)}</p>` : ''}
+        ${sec.kpis ? `<div class="adm-report-kpis">${sec.kpis.map((k) => `<div><span>${esc(k.label)}</span><b>${esc(cellText(k.value, 'number'))}</b><small>${esc(k.unit || '')}</small></div>`).join('')}</div>` : ''}
         ${sec.map ? mapSvg(sec.map) : ''}
         <div class="adm-report-tablewrap"><table class="${sec.columns.filter((c) => !c.printHide).length > 9 ? 'is-wide' : ''}"><thead><tr>${sec.columns.map((c) => `<th class="${cls(c)}" scope="col">${headLabel(c.label)}</th>`).join('')}</tr></thead>
         <tbody>${sec.rows.length ? sec.rows.map((r) => `<tr>${sec.columns.map((c) => `<td class="${cls(c)}">${esc(cellText(r[c.key], c.type))}</td>`).join('')}</tr>`).join('')
@@ -695,6 +703,7 @@
     rep.data.sections.forEach((sec) => {
       lines.push([], [sec.group + ': ' + sec.title]);
       if (sec.subtitle) lines.push([sec.subtitle]);
+      (sec.kpis || []).forEach((k) => lines.push([k.label, k.value, k.unit || '']));
       lines.push(sec.columns.map((c) => c.label));
       sec.rows.forEach((r) => lines.push(sec.columns.map((c) => r[c.key])));
       if (sec.totals) lines.push(sec.columns.map((c) => sec.totals[c.key]));
@@ -721,6 +730,8 @@
       rep.data.sections.forEach((sec, i) => {
         const aoa = [[sec.group + ': ' + sec.title]];
         if (sec.subtitle) aoa.push([sec.subtitle]);
+        (sec.kpis || []).forEach((k) => aoa.push([k.label, k.value, k.unit || '']));
+        if (sec.kpis) aoa.push([]);
         aoa.push(sec.columns.map((c) => c.label));
         sec.rows.forEach((r) => aoa.push(sec.columns.map((c) => r[c.key] === undefined ? '' : r[c.key])));
         if (sec.totals) aoa.push(sec.columns.map((c) => sec.totals[c.key] === undefined ? '' : sec.totals[c.key]));
@@ -803,6 +814,7 @@
     if (!$('recSubdistrict').options.length) fillRecSubs();
     $('recScope').textContent = isAdmin ? `อำเภอ${m.districtName} จังหวัด${m.province} · บันทึกได้เฉพาะตำบลในอำเภอที่ลงทะเบียน` : `จังหวัด${m.province} (บันทึกได้ทุกอำเภอ${state.me.role === 'admin' ? ' แก้ไขได้เฉพาะรายการของตนเอง' : ''})`;
     $('recRecorder').textContent = state.me.name;
+    requestAnimationFrame(renderReview);
     fillBuyers();
     renderRecChips();
     if (!res.gpsTried) { res.gpsTried = true; getGps(); }
@@ -880,6 +892,24 @@
   }
   ['area', 'mb', 'fresh', 'dmf', 'cf', 'soldTonnes'].forEach((n) => $('recForm')[n].addEventListener('input', estimate));
 
+  /* 1.5.0: the review box beside the form repeats what will be saved, so the officer checks it in one look before pressing save. */
+  const SAVE_LABEL = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> บันทึกข้อมูล';
+  function renderReview() {
+    const f = $('recForm'), box = $('recReview'); if (!f || !box) return;
+    const m = res.meta, opt = (sel) => (sel && sel.selectedIndex >= 0 && sel.value ? sel.options[sel.selectedIndex].text : '');
+    const crop = m && m.crops.find((c) => c.key === res.crop);
+    const cropName = res.crop === 'other' && f.cropOther.value.trim() ? f.cropOther.value.trim() : (crop ? crop.name : '');
+    const method = res.method ? res.method + (f.methodOther.value.trim() ? ': ' + f.methodOther.value.trim() : '') : '';
+    const area = Number(f.area.value);
+    const dateText = f.date.value ? new Date(f.date.value + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    const place = [opt(f.subdistrict) && 'ต.' + opt(f.subdistrict), (opt(f.district) || (m && m.districtName)) && 'อ.' + (opt(f.district) || m.districtName)].filter(Boolean).join(' ');
+    const row = (k, v, need) => `<div class="${v ? '' : need ? 'is-missing' : 'is-empty'}"><dt>${k}</dt><dd>${v ? esc(v) : need ? 'ยังไม่ได้กรอก' : '–'}</dd></div>`;
+    box.innerHTML = row('วันที่', dateText, true) + row('สถานที่', place && opt(f.subdistrict) ? place : '', true) + row('ชนิดพืช', cropName, true) +
+      row('วิธีจัดการ', method, true) + row('พื้นที่', area > 0 ? fmt(area, 2) + ' ไร่' : '', true) +
+      row('ภาพถ่าย', res.photos.length ? res.photos.length + ' ภาพ' : '', true) + row('พิกัด', res.gps ? 'มี' : '', false);
+  }
+  ['input', 'change', 'click'].forEach((ev) => $('recForm').addEventListener(ev, () => requestAnimationFrame(renderReview)));
+
   /* GPS: requested automatically once, retry by button; optional. */
   function getGps() {
     const t = $('recGps');
@@ -933,6 +963,7 @@
     $('recPhotos').innerHTML = res.photos.map((p, i) => `<figure>${p.url ? `<img src="${p.url}" alt="ภาพที่ ${i + 1}">` : `<span class="adm-photo-wait">ภาพเดิม ${i + 1}</span>`}
       <button type="button" data-rm="${i}" aria-label="ลบภาพที่ ${i + 1}">×</button></figure>`).join('');
     $('recPhotos').querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { res.photos.splice(Number(b.dataset.rm), 1); renderPhotos(); }));
+    renderReview();
   }
 
   function resetRecForm(keepPlace) {
@@ -940,9 +971,9 @@
     const keep = { date: f.date.value, district: f.district.value, sub: f.subdistrict.value };
     f.reset(); res.photos = []; res.method = ''; res.editing = null;
     if (keepPlace) { f.date.value = keep.date; f.district.value = keep.district; fillRecSubs(keep.sub); } else { res.crop = ''; f.date.value = res.meta ? res.meta.today : ''; fillRecSubs(); }
-    $('recCustomWrap').open = false; $('recSaleWrap').open = false; fillBuyers(''); $('recCancelEdit').classList.add('hidden'); $('recTitle').textContent = 'บันทึกการจัดการวัสดุเหลือใช้ทางการเกษตร';
-    $('recSave').textContent = 'บันทึกข้อมูล';
-    renderPhotos(); renderRecChips();
+    $('recCustomWrap').open = false; $('recSaleWrap').open = false; fillBuyers(''); $('recCancelEdit').classList.add('hidden'); $('recTitle').textContent = 'บันทึกวัสดุเหลือใช้ทางการเกษตร';
+    $('recSave').innerHTML = SAVE_LABEL;
+    renderPhotos(); renderRecChips(); renderReview();
   }
   $('recCancelEdit').addEventListener('click', () => { resetRecForm(false); show('records'); });
 
@@ -1003,7 +1034,7 @@
     res.photos = Array.from({ length: r.photoCount }, (_, i) => ({ kind: 'keep', index: i, url: '' }));
     renderPhotos(); renderRecChips();
     res.photos.forEach((p) => call('residuePhotoServer', { id: r.id, index: p.index }).then((x) => { p.url = `data:${x.mime};base64,${x.data}`; renderPhotos(); }).catch(() => {}));
-    $('recTitle').textContent = 'แก้ไขข้อมูลวันที่ ' + r.date; $('recSave').textContent = 'บันทึกการแก้ไข';
+    $('recTitle').textContent = 'แก้ไขข้อมูลวันที่ ' + r.date; $('recSave').innerHTML = '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> บันทึกการแก้ไข';
     $('recCancelEdit').classList.remove('hidden'); f.confirmed.checked = false; setResult('recResult', '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1026,8 +1057,7 @@
     const r = await call('residueListServer', input);
     res.list = r.records;
     const t = r.totals;
-    $('recsSum').innerHTML = `${fmt(t.records)} รายการ · พื้นที่ <b>${fmt(t.area, 2)}</b> ไร่ · วัสดุเหลือใช้ทางการเกษตร ${fmt(t.tonnes, 2)} ตัน · มูลค่า <b>${fmtBaht(t.value)}</b> บาท · ก๊าซเรือนกระจกที่ลดได้ <b>${fmtG(t.ghg)}</b> ${UNIT}` +
-      (r.truncated ? ' <span class="adm-muted">(แสดง 500 รายการล่าสุด)</span>' : '');
+    $('recsSum').innerHTML = recsSummary(t, r.records, r.truncated);
     $('recsList').innerHTML = r.records.map((x) => `<article class="adm-rec-card">
         <header><b>${fmt(x.area, 2)} ไร่</b><span>${esc(x.method)}${x.methodOther ? ': ' + esc(x.methodOther) : ''}</span><span class="adm-badge">${esc(x.cropName)}</span></header>
         <p>${esc(x.date)} · ต.${esc(x.subdistrictName)} อ.${esc(x.districtName)}</p>
@@ -1044,6 +1074,25 @@
       if (!window.confirm(`ลบรายการ ${x.date} ต.${x.subdistrictName} ${x.method} ${x.area} ไร่?\nรายการจะไม่นับในยอดรวม (เก็บไว้ในประวัติ)`)) return;
       try { toast((await call('residueDeleteServer', { id: x.id })).message); loadRecords(); } catch (err) { toast(err.message); }
     }));
+  }
+  /* 1.5.0 สรุปผลการส่งเสริม: the totals as tiles, then the area by management type and by crop, before the list itself. */
+  function recsSummary(t, list, truncated) {
+    const tile = (label, value, unit, est) => `<div class="adm-sumtile"><span class="adm-sumtile-label">${label}${est ? ' <span class="adm-est">ประมาณการ</span>' : ''}</span><b>${value}</b><small>${unit}</small></div>`;
+    const group = (key) => {
+      const g = {};
+      list.forEach((x) => { const k = x[key] || 'ไม่ระบุ'; (g[k] = g[k] || { a: 0, n: 0 }); g[k].a += Number(x.area) || 0; g[k].n++; });
+      return Object.entries(g).sort((a, b) => b[1].a - a[1].a);
+    };
+    const bars = (title, rows) => {
+      if (!rows.length) return '';
+      const max = Math.max(...rows.map((r) => r[1].a));
+      return `<div class="adm-sumbars"><h4>${title}</h4><ul>${rows.map(([k, v]) => `<li><span class="adm-sumbars-name">${esc(k)}</span>
+        <span class="adm-sumbars-track" aria-hidden="true"><i style="width:${max ? (v.a / max * 100).toFixed(1) : 0}%"></i></span>
+        <span class="adm-sumbars-val">${fmt(v.a, 2)} ไร่ <small>${fmt(v.n)} รายการ</small></span></li>`).join('')}</ul></div>`;
+    };
+    return `<div class="adm-sumtiles">${tile('จำนวนรายการ', fmt(t.records), 'รายการ')}${tile('พื้นที่ที่จัดการ', fmt(t.area, 2), 'ไร่')}${tile('ปริมาณชีวมวล', fmt(t.tonnes, 2), 'ตัน', true)}${tile('คิดเป็นมูลค่า', fmtBaht(t.value), 'บาท', true)}${tile('ลดก๊าซเรือนกระจก', fmtG(t.ghg), UNIT, true)}</div>` +
+      (list.length ? `<div class="adm-sumgrid">${bars('แยกตามวิธีจัดการ', group('method'))}${bars('แยกตามชนิดพืช', group('cropName'))}</div>` : '') +
+      (truncated ? '<p class="adm-muted">ตัวเลขรวมคิดจากทุกรายการ ส่วนการแยกประเภทและรายการด้านล่างแสดง 500 รายการล่าสุด</p>' : '');
   }
   function fillRecsSubs() {
     const d = districtScoped() ? state.me.district : $('recsDistrict').value;

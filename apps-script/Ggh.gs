@@ -58,7 +58,7 @@ function gghLink_() {
   const names = last >= 2 ? sh.getRange(2, 1, last - 1, 1).getValues().map(function (r) { return String(r[0]).trim(); }) : [];
   const i = names.indexOf(GGH_FEED_HASH_PARAM);
   const row = [GGH_FEED_HASH_PARAM, hash, 'sha256',
-    'ABM (ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร) อ่านข้อมูลตลาดผ่าน feed — ค่า hash ของกุญแจ ไม่ใช่กุญแจ (ห้ามแก้ไข)'];
+    'ABM (ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร) อ่านข้อมูลตลาดผ่าน feed — ค่า hash ของกุญแจ ไม่ใช่กุญแจ (ห้ามแก้ไข)'];
   if (i >= 0) {
     if (String(sh.getRange(i + 2, 2).getValue()) !== hash) sh.getRange(i + 2, 1, 1, 4).setValues([row]);
   } else {

@@ -7,12 +7,14 @@ button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: 0; }
 :focus-visible { outline: 2px solid var(--ggh-green-dark); outline-offset: 2px; }
 
-.adm-top { position: sticky; top: 0; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .75rem clamp(1rem, 3vw, 2rem); background: var(--ggh-green-dark); color: #fff; }
-.adm-brand { color: #fff; text-decoration: none; font-weight: 700; font-size: 1.05rem; }
-.adm-brand span { font-weight: 400; opacity: .8; }
+/* 1.5.0: the top bar itself is .abm-topbar in dashboard.css (same on every page); below it, a thin bar for the signed-in officer. */
+.adm-userbar { background: #f1f6f2; border-top: 1px solid var(--ggh-line); }
+.adm-userbar-in { max-width: 84rem; margin: 0 auto; padding: .3rem clamp(.75rem, 2.5vw, 1.5rem); }
+.adm-userbar-who { font-weight: 600; }
+.adm-userbar-actions { display: inline-flex; gap: .75rem; margin-left: auto; }
 .adm-user { display: flex; align-items: center; gap: .6rem; font-size: .9rem; flex-wrap: wrap; justify-content: flex-end; }
 .adm-role { font-size: .75rem; padding: .1rem .5rem; border-radius: 999px; background: rgba(255,255,255,.18); }
-.adm-link { color: #fff; text-decoration: underline; min-height: 36px; }
+.adm-link { color: var(--ggh-green-dark); text-decoration: underline; min-height: 36px; }
 
 .adm-main { max-width: 76rem; margin: 0 auto; padding: clamp(1rem, 3vw, 2rem); }
 .adm-muted { color: var(--ggh-muted); font-size: .9rem; }
@@ -211,8 +213,6 @@ input:focus, select:focus { outline: none; border-color: var(--ggh-green); box-s
 .adm-map path { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 @media print { body.is-printing-report .adm-map svg { max-width: 15cm; } body.is-printing-report .adm-map { break-inside: avoid; } }
 @media (max-width: 600px) {
-  .adm-top { padding: .6rem .8rem; }
-  .adm-brand { font-size: .95rem; }
   .adm-form, .adm-form-inline, .adm-card { padding: .9rem; }
   .adm-report { padding: 1rem; }
 }
@@ -227,11 +227,8 @@ input:focus, select:focus { outline: none; border-color: var(--ggh-green); box-s
 .adm-small { font-size: .82rem; }
 .adm-nav-group { display: block; padding: .8rem .9rem .25rem; font-size: .75rem; font-weight: 700; color: var(--ggh-muted); white-space: nowrap; }
 @media (max-width: 959px) { .adm-nav-group { display: flex; align-items: center; padding: 0 .4rem 0 .9rem; border-left: 1px solid var(--ggh-line); } .adm-nav-group:first-child { border-left: 0; padding-left: .2rem; } }
-.adm-brand { line-height: 1.3; }
-@media (max-width: 600px) { .adm-brand { font-size: .85rem; } .adm-brand span { display: block; } }
 
 /* ---------- 2.2.0 task-based menu: one row of top items, sub-tabs inside the page ---------- */
-.adm-brand small { display: block; font-size: .78rem; font-weight: 400; opacity: .85; }
 @media (min-width: 960px) {
   .adm-app { grid-template-columns: minmax(0, 1fr); }
   .adm-nav { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--ggh-line); position: static; }
@@ -330,3 +327,65 @@ input:focus, select:focus { outline: none; border-color: var(--ggh-green); box-s
   body.is-printing-report .adm-report-sec.is-landscape,
   body.is-printing-report .adm-report-sec.is-landscape + .adm-report-sec:not(.is-landscape) { break-before: auto; }
 }
+
+/* ---------- 1.5.0 record form: numbered steps + a review box that stays in view ---------- */
+.adm-rec.adm-rec2 { max-width: none; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1024px) { .adm-rec.adm-rec2 { grid-template-columns: minmax(0, 1fr) 20rem; } }
+.adm-rec2-main { display: grid; gap: 1rem; min-width: 0; }
+.adm-recstep { border: 1px solid var(--ggh-line); border-radius: var(--ggh-radius-lg); background: var(--ggh-surface); padding: 1rem 1.1rem 1.1rem; display: grid; gap: .65rem; min-width: 0; }
+.adm-recstep legend { display: flex; align-items: center; gap: .55rem; font-size: 1.02rem; font-weight: 700; color: var(--ggh-green-dark); padding: 0 .35rem; margin-left: -.35rem; }
+.adm-recstep-n { display: inline-grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; background: var(--ggh-green); color: #fff; font-size: .88rem; font-weight: 700; }
+.adm-recstep-label { font-weight: 600; font-size: .9rem; margin-top: .2rem; }
+.adm-recstep-note { display: grid; gap: .25rem; font-weight: 600; font-size: .9rem; }
+details.adm-recstep { padding: .7rem 1.1rem; }
+details.adm-recstep[open] { padding-bottom: 1.1rem; }
+.adm-req { color: #a12a1f; }
+.adm-area { display: grid; gap: .3rem; font-weight: 600; font-size: .9rem; max-width: 18rem; }
+.adm-unit-input { display: flex; align-items: stretch; }
+.adm-unit-input input { border-top-right-radius: 0; border-bottom-right-radius: 0; font-variant-numeric: tabular-nums; }
+.adm-unit-input > span { display: grid; place-items: center; padding: 0 .75rem; border: 1px solid #cfd8d2; border-left: 0; border-radius: 0 8px 8px 0;
+  background: #f3f7f4; color: var(--ggh-muted); font-weight: 500; font-size: .88rem; white-space: nowrap; }
+.adm-area .adm-unit-input input { font-size: 1.25rem; font-weight: 700; }
+.adm-rec2-side { position: relative; }
+@media (min-width: 1024px) { .adm-rec2-side { position: sticky; top: 7rem; } }
+.adm-review { border: 1px solid var(--ggh-line); border-top: 4px solid var(--ggh-green); border-radius: var(--ggh-radius-lg); background: var(--ggh-surface); padding: 1rem 1.1rem; display: grid; gap: .75rem; }
+.adm-review h3 { margin: 0; font-size: 1.02rem; }
+.adm-review-list { display: grid; gap: 0; }
+.adm-review-list > div { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: .5rem; padding: .4rem 0; border-bottom: 1px solid var(--ggh-line); font-size: .9rem; }
+.adm-review-list dt { color: var(--ggh-muted); }
+.adm-review-list dd { font-weight: 600; overflow-wrap: anywhere; }
+.adm-review-list .is-missing dd { color: #a12a1f; font-weight: 500; }
+.adm-review-list .is-empty dd { color: var(--ggh-muted); font-weight: 400; }
+.adm-review-who { font-size: .85rem; }
+.adm-review .adm-confirm .adm-btn-primary { width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: .45rem; min-height: 48px; font-size: 1.02rem; }
+
+/* ---------- 1.5.0 สรุปผลการส่งเสริม ---------- */
+.adm-recs-sum { display: grid; gap: .9rem; }
+.adm-sumtiles { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); }
+.adm-sumtile { background: var(--ggh-surface); border: 1px solid var(--ggh-line); border-radius: 12px; padding: .7rem .9rem; display: grid; gap: .1rem; }
+.adm-sumtile-label { font-size: .85rem; color: var(--ggh-muted); }
+.adm-sumtile b { font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.adm-sumtile small { font-size: .8rem; color: var(--ggh-muted); }
+.adm-est { display: inline-block; padding: 0 .4rem; border-radius: 999px; background: #f4ecd6; color: #7a5a12; font-size: .7rem; font-weight: 600; }
+.adm-sumgrid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+.adm-sumbars { background: var(--ggh-surface); border: 1px solid var(--ggh-line); border-radius: 12px; padding: .8rem 1rem; }
+.adm-sumbars h4 { font-size: .95rem; margin-bottom: .5rem; }
+.adm-sumbars ul { list-style: none; display: grid; gap: .45rem; }
+.adm-sumbars li { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: .6rem; align-items: center; font-size: .88rem; }
+.adm-sumbars-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.adm-sumbars-track { height: 8px; border-radius: 4px; background: var(--ggh-zero); overflow: hidden; }
+.adm-sumbars-track i { display: block; height: 100%; border-radius: 4px; background: var(--ggh-seq-4); }
+.adm-sumbars-val { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.adm-sumbars-val small { color: var(--ggh-muted); margin-left: .25rem; }
+.adm-recs-head { margin-top: .5rem; }
+
+/* ---------- 1.5.0 ออกรายงาน: the one-page summary first, the rest under "รายงานอื่น" ---------- */
+.adm-rtypes button.is-primary { grid-column: 1 / -1; border-width: 2px; padding: .85rem 1rem; }
+.adm-rtypes button.is-primary b { font-size: 1.08rem; color: var(--ggh-green-dark); }
+.adm-rtypes-more { grid-column: 1 / -1; font-size: .85rem; font-weight: 600; color: var(--ggh-muted); margin-top: .35rem; }
+.adm-report-kpis { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); margin: .5rem 0 .9rem; }
+.adm-report-kpis > div { border: 1px solid var(--ggh-line); border-radius: 8px; padding: .5rem .65rem; display: grid; gap: .05rem; break-inside: avoid; }
+.adm-report-kpis span { font-size: .78rem; color: var(--ggh-muted); line-height: 1.3; }
+.adm-report-kpis b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.adm-report-kpis small { font-size: .72rem; color: var(--ggh-muted); line-height: 1.3; }
+@media print { .adm-report-kpis { grid-template-columns: repeat(5, 1fr); } }

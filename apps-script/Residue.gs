@@ -744,6 +744,56 @@ function residueReportSection_(key, R, s) {
   const label = R.ctx.label.label;
   const total = R.computed.reduce(function (a, x) { return a + x.r.area; }, 0);
   const target = residueTargetOf_(R, '');
+  // 1.5.0 executive one-pager: four figures, then districts ordered from the furthest behind the target.
+  if (key === 'residue.exec') {
+    const g = residueGroupBy_(R, function () { return 'all'; }).all || { n: 0, area: 0, tonnes: 0, ghg: 0, value: 0 };
+    const byD = residueGroupBy_(R, function (r) { return r.district; });
+    let bal = null;
+    try { bal = residueBalance_(R.fy, R.district); } catch (err) { bal = null; }
+    const balOf = function (c) { return bal ? (bal.byDistrict || []).find(function (d) { return d.district === c; }) || null : null; };
+    const codes = Object.keys(R.names).sort().filter(function (c) { return !R.district || c === R.district; });
+    const statusOf = function (p) { return p === '' ? 'ยังไม่กำหนดเป้า' : p >= 100 ? 'ถึงเป้าแล้ว' : p >= 50 ? 'เกินครึ่งของเป้า' : p > 0 ? 'ต่ำกว่าครึ่งของเป้า' : 'ยังไม่มีผล'; };
+    const rows = codes.map(function (c) {
+      const x = byD[c] || { area: 0, ghg: 0 };
+      const d = R.targets.rows.find(function (t) { return t.district === c; }) || {};
+      const t = d.total === null || d.total === undefined ? '' : d.total;
+      const p = t ? pct_(x.area, t) : '';
+      const b = balOf(c);
+      return { name: R.names[c], target: t, area: round_(x.area, 2), pct: p, gap: t ? round_(Math.max(0, t - x.area), 2) : '',
+        risk: b ? round_(b.atRiskRai, 0) : '', status: statusOf(p) };
+    }).sort(function (a, b) { return (a.pct === '' ? 1e9 : a.pct) - (b.pct === '' ? 1e9 : b.pct) || (Number(b.risk) || 0) - (Number(a.risk) || 0); });
+    const bt = bal ? bal.totals : null;
+    const done = target ? pct_(g.area, target) : null;
+    return {
+      subtitle: scope,
+      kpis: [
+        { label: 'พื้นที่จัดการแล้ว', value: round_(g.area, 2), unit: target ? 'ไร่ จากเป้าหมาย ' + target + ' ไร่ (' + done + '%)' : 'ไร่ (ยังไม่กำหนดเป้าหมาย)' },
+        { label: 'ลดก๊าซเรือนกระจกลงได้ (ประมาณการ)', value: round_(g.ghg, 2), unit: GHG_UNIT_T },
+        { label: 'ปริมาณชีวมวลที่จัดการได้ (ประมาณการ)', value: round_(g.tonnes, 1), unit: 'ตัน' },
+        { label: 'คิดเป็นมูลค่า (ประมาณการ)', value: round_(g.value, 0), unit: 'บาท' },
+        { label: 'เก็บเกี่ยวแล้วแต่ยังไม่มีบันทึกการจัดการ', value: bt ? round_(bt.atRiskRai, 0) : '', unit: bt ? 'ไร่ จากพื้นที่เก็บเกี่ยว ' + round_(bt.harvestedRai, 0) + ' ไร่' : 'ไร่ (ยังไม่มีข้อมูลเพาะปลูก)' }
+      ],
+      columns: [col_('name', 'อำเภอ'), col_('target', 'เป้าหมาย (ไร่)', 'number'), col_('area', 'จัดการแล้ว (ไร่)', 'number'), col_('pct', 'ร้อยละของเป้า', 'number'),
+        col_('gap', 'ยังขาดจากเป้า (ไร่)', 'number'), col_('risk', 'เก็บเกี่ยวแล้วยังไม่มีบันทึก (ไร่)', 'number'), col_('status', 'สถานะ')],
+      rows: rows,
+      totals: { name: R.district ? 'รวม' : 'รวมทั้งจังหวัด', target: target === null ? '' : target, area: round_(g.area, 2), pct: target ? done : '',
+        gap: target ? round_(Math.max(0, target - g.area), 2) : '', risk: bt ? round_(bt.atRiskRai, 0) : '', status: '' },
+      notes: ['เรียงจากอำเภอที่ร้อยละของเป้าต่ำที่สุด · "ยังไม่มีบันทึก" ไม่ได้แปลว่าถูกเผา เป็นพื้นที่ที่ควรติดตาม · ก๊าซเรือนกระจก ชีวมวล และมูลค่าเป็นค่าประมาณการตามแนวทาง ' + label + ' ไม่ใช่รายได้จากการขายจริง']
+    };
+  }
+  if (key === 'residue.execmethods') {
+    const g = residueGroupBy_(R, function (r) { return r.method; });
+    const rows = Object.keys(g).map(function (m) { return { method: m, area: round_(g[m].area, 2), share: pct_(g[m].area, total), n: g[m].n }; })
+      .sort(function (a, b) { return b.area - a.area; });
+    const none = residueMethods_(false).map(function (m) { return m.method; }).filter(function (m) { return !g[m]; });
+    return {
+      subtitle: scope,
+      columns: [col_('method', 'วิธีจัดการ'), col_('area', 'พื้นที่ (ไร่)', 'number'), col_('share', 'สัดส่วน (%)', 'number'), col_('n', 'รายการ', 'number')],
+      rows: rows,
+      totals: { method: 'รวม', area: round_(total, 2), share: total ? 100 : '', n: R.computed.length },
+      notes: none.length ? ['ยังไม่มีการบันทึก: ' + none.join(', ')] : []
+    };
+  }
   if (key === 'residue.summary') {
     const g = residueGroupBy_(R, function () { return 'all'; }).all || { n: 0, area: 0, tonnes: 0, ghg: 0, ch4: 0, n2o: 0, ch4e: 0, n2oe: 0, excluded: 0, value: 0 };
     return {

@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14532d">
-  <meta name="description" content="ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร จังหวัดกำแพงเพชร (Agri By-product Management): ผลการจัดการวัสดุเหลือใช้ทางการเกษตรเทียบเป้าหมายรายอำเภอ ก๊าซเรือนกระจกที่ลดได้ มูลค่า การเพาะปลูก และตลาด สำหรับผู้บริหารและเจ้าหน้าที่">
+  <meta name="description" content="ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร จังหวัดกำแพงเพชร (Agri By-product Management): ผลการจัดการวัสดุเหลือใช้ทางการเกษตรเทียบเป้าหมายรายอำเภอ ก๊าซเรือนกระจกที่ลดได้ มูลค่า การเพาะปลูก และตลาด สำหรับผู้บริหารและเจ้าหน้าที่">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร · กำแพงเพชร</title>
+  <title>ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร · กำแพงเพชร</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/dashboard.css?v=1.4.0">
+  <link rel="stylesheet" href="assets/dashboard.css?v=1.5.0">
 
   <style>
     * { box-sizing: border-box; }
@@ -44,32 +44,30 @@
 </head>
 <body>
 
-  <nav class="bg-white shadow-md fixed top-0 w-full z-50 border-b border-green-100">
-    <div class="container mx-auto px-3 sm:px-4 py-2 flex justify-between items-center gap-2 max-w-5xl" style="padding-top: max(.5rem, env(safe-area-inset-top));">
-      <img src="https://doaenews.doae.go.th/wp-content/uploads/2021/03/DOAE-2.png" class="h-8 sm:h-10 w-auto shrink-0" alt="กรมส่งเสริมการเกษตร">
-      <div class="text-center min-w-0">
-        <h1 class="ggh-topbar-title text-green-800 font-bold leading-tight">ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร</h1>
-        <p class="ggh-topbar-sub">จังหวัด<span data-province>กำแพงเพชร</span> · Agri By-product Management</p>
-      </div>
-      <img src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Seal_of_Kamphaeng_Phet_Province_%28color_version%2C_Thai_Fine_Art_Department%29.png" class="h-8 sm:h-10 w-auto shrink-0" alt="ตราจังหวัดกำแพงเพชร">
+  <!-- 1.5.0: one top bar on every page (index.html and admin.html): logos + system name on the left, ways in on the right. -->
+  <header class="abm-topbar">
+    <div class="abm-topbar-in">
+      <a class="abm-brand" href="./" aria-label="ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร หน้าหลัก">
+        <img src="https://doaenews.doae.go.th/wp-content/uploads/2021/03/DOAE-2.png" class="abm-brand-logo" alt="กรมส่งเสริมการเกษตร">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Seal_of_Kamphaeng_Phet_Province_%28color_version%2C_Thai_Fine_Art_Department%29.png" class="abm-brand-seal" alt="ตราจังหวัดกำแพงเพชร">
+        <span class="abm-brand-text">
+          <span class="abm-brand-title">ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร</span>
+          <span class="abm-brand-sub">ผลการจัดการวัสดุเหลือใช้ทางการเกษตรเทียบเป้าหมาย การเพาะปลูก และตลาดจาก Green Gain Hub เปิดดูได้โดยไม่ต้องเข้าสู่ระบบ เจ้าหน้าที่เข้าสู่ระบบเพื่อบันทึกผลและออกรายงาน</span>
+        </span>
+      </a>
+      <nav class="abm-topnav" aria-label="ทางเข้า">
+        <a href="https://krit-pj.github.io/Green_Gain_Hub-KPP/" class="abm-topbtn" data-ggh-link rel="noopener"><i class="fa-solid fa-store" aria-hidden="true"></i><span>ตลาด Green Gain Hub</span></a>
+        <button type="button" data-door="staff" class="abm-topbtn is-primary"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i><span>เข้าสู่ระบบเจ้าหน้าที่</span></button>
+      </nav>
     </div>
-  </nav>
+  </header>
 
-  <main class="flex-grow pt-20 sm:pt-24 pb-10 sm:pb-12 px-3 sm:px-4 container mx-auto max-w-5xl">
+  <main class="flex-grow pt-4 sm:pt-5 pb-10 sm:pb-12 px-3 sm:px-4 container mx-auto max-w-5xl">
 
     <div id="dashPage" class="ggh-landing" data-tab="overview">
       <!-- ABM 1.0.0: the executive dashboard (moved from Green Gain Hub 2.5.0 #performance); staff sign-in unchanged. -->
       <div class="ggh-topcard">
-      <header class="ggh-hero">
-        <div class="ggh-hero-text">
-          <p class="ggh-hero-lede">ผลการดำเนินงานลดการเผา</p>
-          <p class="ggh-hero-sub">ผลการจัดการวัสดุเหลือใช้ทางการเกษตรเทียบเป้าหมาย การเพาะปลูก และตลาดจาก Green Gain Hub เปิดดูได้โดยไม่ต้องเข้าสู่ระบบ เจ้าหน้าที่เข้าสู่ระบบเพื่อบันทึกผลและออกรายงาน</p>
-        </div>
-        <nav class="ggh-entry ggh-entry-perf" aria-label="เจ้าหน้าที่">
-          <a href="https://krit-pj.github.io/Green_Gain_Hub-KPP/" class="ggh-entry-back" data-ggh-link rel="noopener"><i class="fa-solid fa-store" aria-hidden="true"></i><span class="ggh-entry-name">ตลาดวัสดุ Green Gain Hub</span><span class="ggh-entry-hint">สำหรับเกษตรกรและผู้รับซื้อ</span></a>
-          <button type="button" data-door="staff" class="ggh-entry-staff"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span class="ggh-entry-name">เข้าสู่ระบบเจ้าหน้าที่</span><span class="ggh-entry-hint">บันทึกและติดตามผลรายอำเภอ</span></button>
-        </nav>
-      </header>
+      <!-- 1.5.0: the purpose line and the two ways in moved to the top bar; this card keeps the scope, filters and tabs. -->
 
       <section class="ggh-scope" aria-labelledby="scopeTitle">
         <div class="ggh-scope-head">
@@ -104,6 +102,12 @@
         <div class="ggh-cards" id="dashKpis"></div>
       </section>
 
+      <section class="ggh-panel ggh-resmethods ggh-resmethods-top" data-tabs="overview" aria-labelledby="resMethodsTitle">
+        <h3 id="resMethodsTitle" class="ggh-panel-title">พื้นที่จัดการวัสดุเหลือใช้ทางการเกษตร แยกตามประเภท <small class="ggh-panel-hint">กดการ์ดเพื่อกรองข้อมูลทั้งหน้า</small></h3>
+        <p class="ggh-panel-sub" id="resMethodsSub"></p>
+        <div class="ggh-methods" id="resMethods"></div>
+      </section>
+
       <section class="ggh-mapcard" aria-label="แผนที่รายอำเภอ">
         <p class="ggh-ci-caption" data-tabs="overview">ก๊าซเรือนกระจกที่ลดได้ รายพืช (ตันคาร์บอนไดออกไซด์เทียบเท่า)</p>
         <div class="ggh-cropicons" id="resCropIcons" data-tabs="overview" role="radiogroup" aria-label="เลือกชนิดพืชเพื่อดูปริมาณ ก๊าซเรือนกระจกที่ลดได้"></div>
@@ -127,11 +131,6 @@
         <div id="resBalance"></div>
       </section>
 
-      <section class="ggh-panel ggh-resmethods" data-tabs="overview" aria-labelledby="resMethodsTitle">
-        <h3 id="resMethodsTitle" class="ggh-panel-title">พื้นที่จัดการวัสดุเหลือใช้ทางการเกษตร แยกตามประเภท</h3>
-        <p class="ggh-panel-sub" id="resMethodsSub"></p>
-        <div class="ggh-methods" id="resMethods"></div>
-      </section>
 
       <section class="ggh-panel ggh-cropmonths" data-tabs="crops" aria-labelledby="dashCropMonthsTitle">
         <h3 id="dashCropMonthsTitle" class="ggh-panel-title">พื้นที่เก็บเกี่ยวรายเดือน</h3>
@@ -207,7 +206,7 @@
         <header class="ggh-dialog-head is-staff">
           <div>
             <p class="ggh-dialog-kicker">สำหรับเจ้าหน้าที่</p>
-            <h2 id="staffAuthTitle">บันทึกการจัดการ ภาพรวม และรายงาน</h2>
+            <h2 id="staffAuthTitle">บันทึกข้อมูล สรุปผล และออกรายงาน</h2>
           </div>
           <button type="button" class="ggh-dialog-close" data-close aria-label="ปิดหน้าต่าง">✕</button>
         </header>
@@ -247,7 +246,7 @@
 
   <footer class="bg-green-900 text-white text-center py-6 mt-auto">
     <div class="container mx-auto px-4">
-      <p class="text-xs md:text-sm opacity-90 mb-2">ระบบบริหารจัดการวัสดุเหลือใช้ทางการเกษตร จังหวัดกำแพงเพชร (Agri By-product Management) · ตลาดสำหรับเกษตรกรและผู้รับซื้อ: <a class="underline" href="https://krit-pj.github.io/Green_Gain_Hub-KPP/" data-ggh-link>Green Gain Hub</a></p>
+      <p class="text-xs md:text-sm opacity-90 mb-2">ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร จังหวัดกำแพงเพชร (Agri By-product Management) · ตลาดสำหรับเกษตรกรและผู้รับซื้อ: <a class="underline" href="https://krit-pj.github.io/Green_Gain_Hub-KPP/" data-ggh-link>Green Gain Hub</a></p>
       <h4 class="font-bold text-sm md:text-base mb-1">สำนักงานเกษตรจังหวัดกำแพงเพชร</h4>
       <p class="text-xs md:text-sm opacity-80 mb-3">กรมส่งเสริมการเกษตร กระทรวงเกษตรและสหกรณ์</p>
       <p class="ggh-counter" id="visitCounter" aria-live="polite" hidden>
@@ -262,11 +261,11 @@
     </div>
   </footer>
 
-  <script src="assets/config.js?v=1.4.0"></script>
+  <script src="assets/config.js?v=1.5.0"></script>
   <script src="https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js"></script>
-  <script src="assets/sso-client.js?v=1.4.0"></script>
-  <script src="assets/staff-auth.js?v=1.4.0"></script>
-  <script src="assets/dashboard.js?v=1.4.0" defer></script>
+  <script src="assets/sso-client.js?v=1.5.0"></script>
+  <script src="assets/staff-auth.js?v=1.5.0"></script>
+  <script src="assets/dashboard.js?v=1.5.0" defer></script>
   <script>
     /* ABM 1.0.0 — homepage: executive dashboard (dashboard.js) + officer sign-in popup (unchanged from Green Gain Hub 2.4.2).
        Farmers and buyers use Green Gain Hub; the market link comes from ABM_CONFIG.GGH_URL. */
@@ -333,14 +332,6 @@
       // wake the servers as soon as the door is approached, so sign-in does not wait for a cold start
       ['pointerenter', 'focus', 'touchstart'].forEach((ev) => b.addEventListener(ev, () => { if (window.ABM_SSO) window.ABM_SSO.warm(); }, { passive: true }));
     });
-    // The fixed top bar grows when its title wraps (small phones); keep the page clear of it.
-    (function keepClearOfTopBar() {
-      const bar = document.querySelector('body > nav'), main = document.querySelector('body > main');
-      if (!bar || !main) return;
-      const fit = () => { main.style.paddingTop = Math.ceil(bar.getBoundingClientRect().height + 16) + 'px'; };
-      fit();
-      if (window.ResizeObserver) new ResizeObserver(fit).observe(bar); else window.addEventListener('resize', fit);
-    })();
     // Shareable links (e.g. in LINE): #staff, #staff-register. Read before the dashboard rewrites the hash.
     (function openFromHash() {
       const h = decodeURIComponent((location.hash || '').slice(1));
