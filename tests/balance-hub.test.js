@@ -108,14 +108,14 @@ env.feed.down = false;
 const up = get({ api: 'v1', endpoint: 'summary', refresh: '1' });
 assert(up.data.market.ok && !up.data.market.stale && up.data.totals.buyers === 2, 'feed back: market numbers return: ' + JSON.stringify(up.data.market));
 env.feed.down = true;
-env.api.__newExecution(); ['fresh'].forEach((k) => env.cache.delete('gghfeed:v1:' + k + ':n'));
+env.api.__newExecution(); ['fresh'].forEach((k) => env.cache.delete('gghfeed:v2:62:' + k + ':n'));
 const stale = get({ api: 'v1', endpoint: 'summary', refresh: '1' });
 assert(stale.data.market.ok && stale.data.market.stale && stale.data.totals.buyers === 2, 'feed down again: the last good copy (≤6 h) is used and marked stale');
 env.feed.down = false;
 
 /* a wrong key is refused by Green Gain Hub and never shown to the public */
 env.props.GGH_FEED_KEY = 'wrong';
-env.api.__newExecution(); env.cache.delete('gghfeed:v1:fresh:n');
+env.api.__newExecution(); env.cache.delete('gghfeed:v2:62:fresh:n');
 const wrong = get({ api: 'v1', endpoint: 'summary', refresh: '1' });
 assert(wrong.data.market.stale && /Invalid feed key/.test(wrong.data.market.error) && !JSON.stringify(wrong).includes('"wrong"'), 'wrong feed key: refused, last good copy marked stale, key not echoed: ' + JSON.stringify(wrong.data.market));
 env.props.GGH_FEED_KEY = 'test-feed-key';

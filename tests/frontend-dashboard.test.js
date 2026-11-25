@@ -34,7 +34,7 @@ assert(/#staff/.test(inline) && /staff-register/.test(inline) && !/sell: \['regi
 ['id="dashMap"', 'id="dashKpis"', 'id="dashHarvest"', 'id="dashMaterials"', 'id="dashTable"', 'id="dashDistrict"', 'id="dashDistrictSel"', 'role="tablist"',
   'data-tab="overview"', 'data-tab="crops"', 'data-tab="market"', 'id="dashCropMonths"', 'id="dashCropStack"', 'id="dashAsOf"', 'id="resCropIcons"', 'id="resMethods"', 'id="resFy"',
   'id="resBalance"', 'id="sarWrap"', 'id="resMethodNote"', 'id="visitCounter"'].forEach((s) => assert(html.includes(s), 'dashboard markup missing: ' + s));
-assert(html.includes('assets/dashboard.js?v=1.3.1') && html.includes('assets/dashboard.css?v=1.3.1') && html.indexOf('assets/config.js') < html.indexOf('assets/dashboard.js'), 'assets 1.3.1, config first');
+assert(html.includes('assets/dashboard.js?v=1.4.0') && html.includes('assets/dashboard.css?v=1.4.0') && html.indexOf('assets/config.js') < html.indexOf('assets/dashboard.js'), 'assets 1.4.0, config first');
 const KPP = 'https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js';
 [html, admin].forEach((h, i) => assert(h.indexOf(KPP) > 0 && h.indexOf(KPP) < h.indexOf('assets/sso-client.js') && h.indexOf('assets/sso-client.js') < h.indexOf('assets/staff-auth.js'), 'kpp-id.js → sso-client.js → staff-auth.js order in ' + (i ? 'admin' : 'index')));
 assert(html.includes('keepClearOfTopBar') && css.includes('body.ggh-landing-on > nav > .container { max-width: 84rem; }'), 'top bar width and offset');
@@ -74,6 +74,6 @@ assert(sso.includes("const AUD = 'ABM'") && !sso.includes("'GGH'") && sso.includ
 assert(/S\.staff\(p, call\)/.test(staffAuth) && /ssoAuto/.test(staffAuth) && /S\.registerTicket\(input\)/.test(staffAuth) && staffAuth.includes("'abm_admin_token'") && staffAuth.includes("'abm_sso_prev'"), 'officer sign-in/registration through SSO; own session keys');
 assert(/showSsoPrev/.test(adminJs) && /ABM_SSO\.logout\(\)/.test(adminJs) && /ssoAuto\(\)/.test(adminJs) && adminJs.includes("'abm_admin_token'"), 'officer pages: previous sign-in notice, logout everywhere, auto sign-in');
 const cfg = {}; new vm.Script(config).runInNewContext({ window: cfg });
-assert(cfg.ABM_CONFIG && cfg.ABM_CONFIG.GGH_URL === 'https://krit-pj.github.io/Green_Gain_Hub-KPP/' && cfg.ABM_CONFIG.SPREADSHEET_ID === '1wTzRcRx3sCoUZD9ykFgl17WOGVw9BtVkVwqtAftyVU4' && cfg.ABM_CONFIG.BUILD_VERSION === '1.3.1', 'config');
+assert(cfg.ABM_CONFIG && cfg.ABM_CONFIG.GGH_URL === 'https://krit-pj.github.io/Green_Gain_Hub-KPP/' && cfg.ABM_CONFIG.SPREADSHEET_ID === '1wTzRcRx3sCoUZD9ykFgl17WOGVw9BtVkVwqtAftyVU4' && cfg.ABM_CONFIG.BUILD_VERSION === '1.4.0', 'config');
 assert(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(cfg.ABM_CONFIG.SHEETS_API_URL) && !cfg.ABM_CONFIG.SHEETS_API_URL.includes('AKfycbylUG') && !cfg.ABM_CONFIG.SHEETS_API_URL.includes('AKfycbxoo4'), 'config points at the ABM web app (not Green Gain Hub or Smart Agri): ' + cfg.ABM_CONFIG.SHEETS_API_URL);
 console.log('PASS: SSO for officers (aud ABM) and config');

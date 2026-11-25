@@ -1,5 +1,4 @@
-/* ABM 1.1.0 → 1.2.1: only Super Admin sets (Mini Super Admin sees it read-only) how long a plot stays on the Green Gain Hub market after harvest.
-   The value is sent to Green Gain Hub (its Config); every change is in admin_log; Admin (recorders) cannot change it. */
+/* ABM 1.1.0 → 1.4.0: how long a plot stays on the Green Gain Hub market after harvest — read from Green Gain Hub, set there (4.0.0). */
 const fs = require('fs'), path = require('path');
 const { load, Sheet, HEADERS } = require('./helpers/gas-mock');
 function assert(v, m) { if (!v) throw new Error(m); }
@@ -15,34 +14,15 @@ const D = env.officer({ name: 'สมชาย ใจดี', phone: '0812345678
 let r = post('gghMarketRuleServer', [], T);
 check(r.ok && r.result.rule.hideAfterHarvestDays === 20 && feed.posts.at(-1).action === 'abm_config' && feed.posts.at(-1).hideAfterHarvestDays === undefined, 'read the rule (no change sent)');
 
-/* 1.2.1: only Super Admin may change it — Mini Super Admin can read it, not change it */
+/* 1.4.0: set in Green Gain Hub 4.0.0 by its Super Admin — ABM only shows it */
 check(post('adminSaveServer', [{ username: 'mini1', name: 'มินิ หนึ่ง', role: 'mini', password: 'Mini12345' }], T).ok, 'mini created');
 const M = post('adminLoginServer', [{ username: 'mini1', password: 'Mini12345' }]).result.token;
 check(post('gghMarketRuleServer', [], M).ok, 'Mini Super Admin can read the rule');
-const before = feed.posts.length;
-check(!post('gghMarketRuleSaveServer', [{ hideAfterHarvestDays: 10 }], M).ok && feed.posts.length === before, 'Mini Super Admin cannot change it (nothing sent to Green Gain Hub)');
-check(!post('gghMarketRuleSaveServer', [{ hideAfterHarvestDays: 10 }], D).ok, 'Admin (recorder) cannot change it');
 check(!post('gghMarketRuleServer', [], D).ok, 'Admin (recorder) cannot read it here');
-[-1, 366, 2.5, '', null, 'abc'].forEach((v) => check(!post('gghMarketRuleSaveServer', [{ hideAfterHarvestDays: v }], T).ok, 'invalid value refused: ' + v));
-const sent = feed.posts.length;
-
-r = post('gghMarketRuleSaveServer', [{ hideAfterHarvestDays: 30 }], T);
-check(r.ok && r.result.rule.hideAfterHarvestDays === 30, 'saved: ' + JSON.stringify(r));
-const last = feed.posts.at(-1);
-check(feed.posts.length === sent + 1 && last.hideAfterHarvestDays === 30 && last.by === 'krit' && last.key === 'test-feed-key', 'sent to Green Gain Hub with the feed key and who changed it');
-check(sheets.admin_log.rows.some((x) => x[4] === 'ggh_market_rule' && /30 วันหลังวันเก็บเกี่ยว/.test(x[5]) && x[1] === 'krit'), 'change written to admin_log');
-r = post('gghMarketRuleSaveServer', [{ hideAfterHarvestDays: 0 }], T);
-check(r.ok && sheets.admin_log.rows.some((x) => x[4] === 'ggh_market_rule' && /แสดงทุกแปลง/.test(x[5])), '0 = show every plot');
-
-/* Green Gain Hub refuses (wrong key) → the officer sees why */
-env.props.GGH_FEED_KEY = 'wrong';
-check(/Green Gain Hub/.test(post('gghMarketRuleSaveServer', [{ hideAfterHarvestDays: 20 }], T).error || ''), 'refusal shown');
-env.props.GGH_FEED_KEY = 'test-feed-key';
-
-/* the officer page: its own settings tab; Mini sees it read-only */
+const before = feed.posts.length;
+check(!post('gghMarketRuleSaveServer', [{ hideAfterHarvestDays: 10 }], T).ok && feed.posts.length === before, 'no save method — not even Super Admin (nothing sent to Green Gain Hub)');
 const front = path.join(__dirname, '..', 'frontend');
 const html = fs.readFileSync(path.join(front, 'admin.html'), 'utf8'), js = fs.readFileSync(path.join(front, 'assets', 'admin.js'), 'utf8');
-check(html.includes('data-panel="market"') && html.includes('id="gghRuleForm"') && /name="hideAfterHarvestDays" type="number" min="0" max="365"/.test(html), 'form in its own tab');
-check(js.includes("views: ['targets', 'ghg', 'crops', 'market', 'api']") && js.includes("market: () => loadGghRule()") && js.includes("call('gghMarketRuleSaveServer'"), 'tab in ตั้งค่า for Super and Mini (api stays Super only)');
-check(js.includes("const canEdit = state.me.role === 'super'") && /gghRuleForm[\s\S]{0,400}disabled = !canEdit/.test(js) && html.includes('id="gghRuleSuperOnly"'), '1.2.1: Mini sees the form read-only with a Super-only note');
-console.log('PASS: ' + n + ' checks — ABM 1.2.1 Green Gain Hub market listing rule (Super only to change, validated, sent with the feed key, audited)');
+check(html.includes('data-panel="market"') && html.includes('id="gghRuleStatus"') && !html.includes('name="hideAfterHarvestDays"') && html.includes('Green_Gain_Hub-KPP/admin.html'), 'read-only panel that points to Green Gain Hub');
+check(!js.includes("call('gghMarketRuleSaveServer'") && js.includes("call('gghMarketRuleServer')"), 'page only reads the rule');
+console.log('PASS: ' + n + ' checks — ABM 1.4.0 Green Gain Hub market listing rule shown read-only (set in Green Gain Hub 4.0.0)');

@@ -120,11 +120,16 @@ function load(options) {
       if (body.hideAfterHarvestDays !== undefined) feed.market = Object.assign({}, feed.market || {}, { hideAfterHarvestDays: body.hideAfterHarvestDays });
       out = { ok: true, data: Object.assign({ hideAfterHarvestDays: 20, startDate: '2026-11-21', listedPlots: 0, hiddenPlots: 0, hidden: [] }, feed.market || {}) };
     }
-    else out = { ok: true, data: Object.assign({ apiVersion: '2.6.0', generatedAt: new Date().toISOString(),
-      farmers: { headers: HEADERS.farmers, rows: rows(sheets.farmers) }, buyers: { headers: HEADERS.buyers, rows: rows(sheets.buyers) } },
+    else {
+      // 1.4.0: the feed is per province — this office's sheets are province 62; others come from feed.provinces[code]
+      feed.feedProvinces = (feed.feedProvinces || []).concat([body.province || '']);
+      const other = body.province && body.province !== '62' ? ((feed.provinces || {})[body.province] || { farmers: [], buyers: [] }) : null;
+      out = { ok: true, data: Object.assign({ apiVersion: '2.6.0', generatedAt: new Date().toISOString(), province: body.province || '62',
+      farmers: { headers: HEADERS.farmers, rows: other ? other.farmers : rows(sheets.farmers) }, buyers: { headers: HEADERS.buyers, rows: other ? other.buyers : rows(sheets.buyers) } },
       feed.market ? { market: feed.market } : {},
       // 1.2.0: SHA-256 of Green Gain Hub user phones (farmers/buyers), as GGH 2.9.0 sends them
       { marketPhones: (feed.marketUsers || []).map((ph) => crypto.createHash('sha256').update(ph, 'utf8').digest('hex')) }) };
+    }
     const text = JSON.stringify(out);
     return { getResponseCode: () => 200, getContentText: () => text };
   };
@@ -134,13 +139,13 @@ function load(options) {
   const src = files.map((f) => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
   const names = options.expose || [];
   // __newExecution resets per-execution globals (Apps Script starts every request with a fresh global scope).
-  const api = new Function(src + '; return { doGet, doPost, setupSystem, __newExecution: function () { GGH_FEED_MEMO_ = null; GGH_FEED_STATUS_ = null; }' + names.map((n) => ', ' + n).join('') + ' };')();
+  const api = new Function(src + '; return { doGet, doPost, setupSystem, __newExecution: function () { GGH_FEED_MEMO_ = {}; GGH_FEED_STATUS_ = null; }' + names.map((n) => ', ' + n).join('') + ' };')();
   const fresh = () => api.__newExecution();
   return {
     api, sheets, props, cache, Sheet, drive, feed,
     out: () => last,
     /** Market data changed in Green Gain Hub: drop the 5-minute feed cache (as if 5 minutes passed). */
-    marketChanged() { fresh(); ['fresh', 'stale'].forEach((k) => cache.delete('gghfeed:v1:' + k + ':n')); },
+    marketChanged() { fresh(); ['fresh', 'stale'].forEach((k) => cache.delete('gghfeed:v2:62:' + k + ':n')); },
     post(method, args, token) { fresh(); api.doPost({ postData: { contents: JSON.stringify({ method, args: args || [], token }) } }); return JSON.parse(last.body); },
     /** 1.2.0: officer self-registration waits for approval — register, approve (as a Mini/Super would), then sign in by phone. */
     officer(input) {

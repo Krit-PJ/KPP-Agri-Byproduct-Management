@@ -75,7 +75,6 @@ const ADMIN_METHODS = {
   smartAgriTestServer: { role: 'mini', fn: function () { return smartAgriTest_(); } },
   gghTestServer: { role: 'mini', fn: function () { return { status: 'success', result: verifyGghFeed() }; } },
   gghMarketRuleServer: { role: 'mini', fn: function () { return gghMarketRuleGet_(); } },
-  gghMarketRuleSaveServer: { role: 'super', fn: function (a, s) { return gghMarketRuleSave_(a[0], s); } },
   adminsListServer: { role: 'mini', fn: function () { return adminsList_(); } },
   adminSaveServer: { role: 'mini', fn: function (a, s) { return adminSave_(a[0], s); } },
   adminResetPasswordServer: { role: 'mini', fn: function (a, s) { return adminResetPassword_(a[0], s); } },

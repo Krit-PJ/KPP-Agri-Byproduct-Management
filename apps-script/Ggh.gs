@@ -14,6 +14,9 @@
  *
  * 1.3.0: executive report (POST {action:'abm_report', key, province}) — Green Gain Hub 3.2.0.
  * 1.3.1: the Green Gain Hub PIN reset is removed (Green Gain Hub 3.3.0 signs in by phone number only).
+ * 1.4.0: the feed is read per province (POST {action:'abm_feed', key, province}) — the dashboard, balance and residue pages
+ *        stay on this office's province (62); the contact lists in reports may read another province (Super Admin).
+ *        The market listing rule is set in Green Gain Hub 4.0.0 by its Super Admin; ABM only reads it.
  *
  * Script Properties (optional): GGH_API_URL (Green Gain Hub /exec), GGH_SPREADSHEET_ID (Green Gain Hub database).
  */
@@ -22,13 +25,14 @@ const GGH_DB_DEFAULT = '1TU2kC7kzJbb9JZzo4m7D3eOmcW8Ra_osic33rolE-Hw';
 const GGH_SITE_URL = 'https://krit-pj.github.io/Green_Gain_Hub-KPP/';
 const GGH_FEED_KEY_PROP = 'GGH_FEED_KEY';
 const GGH_FEED_HASH_PARAM = 'abm_feed_key_sha256';
-const GGH_FEED_CACHE = 'gghfeed:v1';
+const GGH_FEED_CACHE = 'gghfeed:v2:';   // + province
 const GGH_FEED_FRESH_SECONDS = 300;
 const GGH_FEED_STALE_SECONDS = 21600;   // used only when Green Gain Hub cannot be reached
 const GGH_FEED_KINDS = ['farmers', 'buyers'];
 
-let GGH_FEED_MEMO_ = null;   // one fetch per execution
+let GGH_FEED_MEMO_ = {};   // province → feed, one fetch per execution
 let GGH_FEED_STATUS_ = null;
+const GGH_HOME_PROVINCE = '62';   // this office's province (กำแพงเพชร)
 
 function gghProps_() { return PropertiesService.getScriptProperties(); }
 function gghApiUrl_() { return String(gghProps_().getProperty('GGH_API_URL') || GGH_API_DEFAULT).trim(); }
@@ -85,17 +89,18 @@ function gghCacheGet_(name) {
   return text;
 }
 function gghFeedClear_() {
-  GGH_FEED_MEMO_ = null;
-  try { CacheService.getScriptCache().removeAll([GGH_FEED_CACHE + ':fresh:n', GGH_FEED_CACHE + ':stale:n']); } catch (err) { /* best effort */ }
+  const used = Object.keys(GGH_FEED_MEMO_).concat([GGH_HOME_PROVINCE]);
+  GGH_FEED_MEMO_ = {};
+  try { CacheService.getScriptCache().removeAll(used.map(function (p) { return GGH_FEED_CACHE + p + ':fresh:n'; })); } catch (err) { /* best effort */ }
 }
 
 /* ------------------------------ fetch ------------------------------ */
-function gghFetchFeed_() {
+function gghFetchFeed_(province) {
   const key = gghProps_().getProperty(GGH_FEED_KEY_PROP);
   if (!key) throw new Error('ยังไม่ได้เชื่อมกับ Green Gain Hub (รัน setupSystem)');
   const res = UrlFetchApp.fetch(gghApiUrl_(), {
     method: 'post', contentType: 'text/plain;charset=utf-8', muteHttpExceptions: true, followRedirects: true,
-    payload: JSON.stringify({ action: 'abm_feed', key: key })
+    payload: JSON.stringify({ action: 'abm_feed', key: key, province: province || GGH_HOME_PROVINCE })
   });
   if (res.getResponseCode() !== 200) throw new Error('Green Gain Hub HTTP ' + res.getResponseCode());
   let body;
@@ -108,31 +113,33 @@ function gghFetchFeed_() {
 }
 
 /** { farmers:{headers, rows}, buyers:{headers, rows}, generatedAt, apiVersion } — fresh ≤5 min, stale ≤6 h on failure. */
-function gghFeed_(force) {
-  if (GGH_FEED_MEMO_ && !force) return GGH_FEED_MEMO_;
+function gghFeed_(force, province) {
+  const pv = gghProvinceCode_(province) && gghProvinceCode_(province) !== 'ALL' ? gghProvinceCode_(province) : GGH_HOME_PROVINCE;
+  const name = GGH_FEED_CACHE + pv;
+  if (GGH_FEED_MEMO_[pv] && !force) return GGH_FEED_MEMO_[pv];
   if (!force) {
-    const hit = gghCacheGet_(GGH_FEED_CACHE + ':fresh');
+    const hit = gghCacheGet_(name + ':fresh');
     if (hit) {
-      GGH_FEED_MEMO_ = JSON.parse(hit);
-      GGH_FEED_STATUS_ = { ok: true, generatedAt: GGH_FEED_MEMO_.generatedAt || '', stale: false };
-      return GGH_FEED_MEMO_;
+      GGH_FEED_MEMO_[pv] = JSON.parse(hit);
+      GGH_FEED_STATUS_ = { ok: true, generatedAt: GGH_FEED_MEMO_[pv].generatedAt || '', stale: false };
+      return GGH_FEED_MEMO_[pv];
     }
   }
   try {
-    const data = gghFetchFeed_();
+    const data = gghFetchFeed_(pv);
     const text = JSON.stringify(data);
-    gghCachePut_(GGH_FEED_CACHE + ':fresh', text, GGH_FEED_FRESH_SECONDS);
-    gghCachePut_(GGH_FEED_CACHE + ':stale', text, GGH_FEED_STALE_SECONDS);
-    GGH_FEED_MEMO_ = data;
+    gghCachePut_(name + ':fresh', text, GGH_FEED_FRESH_SECONDS);
+    gghCachePut_(name + ':stale', text, GGH_FEED_STALE_SECONDS);
+    GGH_FEED_MEMO_[pv] = data;
     GGH_FEED_STATUS_ = { ok: true, generatedAt: data.generatedAt || '', stale: false };
     return data;
   } catch (err) {
-    const stale = gghCacheGet_(GGH_FEED_CACHE + ':stale');
+    const stale = gghCacheGet_(name + ':stale');
     const msg = cleanText_(err && err.message || err, 200);
     if (stale) {
-      GGH_FEED_MEMO_ = JSON.parse(stale);
-      GGH_FEED_STATUS_ = { ok: true, generatedAt: GGH_FEED_MEMO_.generatedAt || '', stale: true, error: msg };
-      return GGH_FEED_MEMO_;
+      GGH_FEED_MEMO_[pv] = JSON.parse(stale);
+      GGH_FEED_STATUS_ = { ok: true, generatedAt: GGH_FEED_MEMO_[pv].generatedAt || '', stale: true, error: msg };
+      return GGH_FEED_MEMO_[pv];
     }
     GGH_FEED_STATUS_ = { ok: false, generatedAt: '', stale: false, error: msg };
     throw err;
@@ -142,10 +149,10 @@ function gghFeed_(force) {
 const GGH_ISO_DATE_ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 /** Rows of the Green Gain Hub sheet (without the header), in the same column order as its sheet; dates are Date objects.
     Returns [] when Green Gain Hub cannot be reached (gghFeedStatus_() says why) so officer pages keep working. */
-function gghRows_(kind) {
+function gghRows_(kind, province) {
   if (GGH_FEED_KINDS.indexOf(kind) < 0) throw new Error('Unknown Green Gain Hub data: ' + kind);
   let feed;
-  try { feed = gghFeed_(false); } catch (err) { return []; }
+  try { feed = gghFeed_(false, province); } catch (err) { return []; }
   return (feed[kind].rows || []).map(function (r) {
     return r.map(function (v) { return typeof v === 'string' && GGH_ISO_DATE_.test(v) ? new Date(v) : v; });
   });
@@ -172,29 +179,18 @@ function gghPost_(body) {
   return out.data;
 }
 
-/** { hideAfterHarvestDays, startDate, listedPlots, hiddenPlots, hidden:[{id, reason}] } read now from Green Gain Hub. */
+/** { hideAfterHarvestDays, startDate, listedPlots, hiddenPlots, hidden:[{id, reason}] } read now from Green Gain Hub.
+    1.4.0: read-only here — Green Gain Hub 4.0.0's Super Admin sets it. */
 function gghMarketRuleGet_() {
   return { status: 'success', rule: gghPost_({ action: 'abm_config' }) };
 }
 
-function gghMarketRuleSave_(input, s) {
-  input = input || {};
-  const n = Number(input.hideAfterHarvestDays);
-  if (input.hideAfterHarvestDays === '' || input.hideAfterHarvestDays === null || !isFinite(n) || Math.floor(n) !== n || n < 0 || n > 365) {
-    throw new Error('จำนวนวันต้องเป็นจำนวนเต็ม 0–365 (0 = แสดงทุกแปลง ไม่ซ่อน)');
-  }
-  const rule = gghPost_({ action: 'abm_config', hideAfterHarvestDays: n, by: (s && s.username) || '' });
-  gghFeedClear_();
-  try { CacheService.getScriptCache().remove(SUMMARY_CACHE_KEY); } catch (err) { /* best effort */ }
-  adminAudit_(s, 'ggh_market_rule', n ? 'ตลาด Green Gain Hub: แสดงแปลงถึง ' + n + ' วันหลังวันเก็บเกี่ยว (ซ่อน ' + rule.hiddenPlots + ' แปลง)' : 'ตลาด Green Gain Hub: แสดงทุกแปลง (ปิดการซ่อน)');
-  return { status: 'success', rule: rule };
-}
 
 /** From the cached feed: { id: reason } of Open plots that buyers do not see today. Empty if Green Gain Hub is older than 2.8.0. */
-function gghHiddenPlots_() {
+function gghHiddenPlots_(province) {
   const out = {};
   try {
-    const m = gghFeed_(false).market;
+    const m = gghFeed_(false, province).market;
     ((m && m.hidden) || []).forEach(function (h) { out[String(h.id)] = h.reason || 'hidden'; });
   } catch (err) { /* feed down: nothing known */ }
   return out;
@@ -228,6 +224,16 @@ function gghProvinceCode_(v) {
   const t = String(v === undefined || v === null ? '' : v).trim().toUpperCase();
   if (t === 'ALL') return 'ALL';
   return /^\d{2}$/.test(t) ? t : '';
+}
+
+/** 1.4.0: Thai name of a province code (from the Green Gain Hub feed / report; this office's name for 62). */
+let GGH_PROVINCE_NAMES_ = {};   // names the officer's page sent with the request (display only)
+function gghProvinceName_(code) {
+  if (code === GGH_HOME_PROVINCE) return provinceName_();
+  if (GGH_PROVINCE_NAMES_[code]) return GGH_PROVINCE_NAMES_[code];
+  try { const f = GGH_FEED_MEMO_[code]; if (f && f.provinceName) return f.provinceName; } catch (e) { /* none */ }
+  try { const r = GGH_REPORT_MEMO_[code]; if (r && r.scope && r.scope.name) return r.scope.name; } catch (e) { /* none */ }
+  return 'รหัส ' + code;
 }
 
 /** Executive numbers from Green Gain Hub (abm_report): one province by district, or every province. Cached 5 minutes. */
