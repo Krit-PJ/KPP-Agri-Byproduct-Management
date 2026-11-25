@@ -125,43 +125,43 @@
           </div>
           <form class="adm-form adm-rec adm-rec2" id="recForm" novalidate>
             <div class="adm-rec2-main">
-              <fieldset class="adm-step">
-                <legend><span class="adm-step-n" aria-hidden="true">1</span>สถานที่และวันที่</legend>
+              <fieldset class="adm-recstep">
+                <legend><span class="adm-recstep-n" aria-hidden="true">1</span>สถานที่และวันที่</legend>
                 <div class="adm-rec-grid">
                   <label>วันที่ดำเนินการ <span class="adm-req" aria-hidden="true">*</span><input type="date" name="date" required></label>
                   <label id="recDistrictWrap">อำเภอ <span class="adm-req" aria-hidden="true">*</span><select name="district" id="recDistrict"></select></label>
                   <label>ตำบล <span class="adm-req" aria-hidden="true">*</span><select name="subdistrict" id="recSubdistrict" required></select></label>
                 </div>
               </fieldset>
-              <fieldset class="adm-step">
-                <legend><span class="adm-step-n" aria-hidden="true">2</span>ชนิดพืชและวิธีจัดการ</legend>
-                <p class="adm-step-label">ชนิดพืช <span class="adm-req" aria-hidden="true">*</span></p>
+              <fieldset class="adm-recstep">
+                <legend><span class="adm-recstep-n" aria-hidden="true">2</span>ชนิดพืชและวิธีจัดการ</legend>
+                <p class="adm-recstep-label">ชนิดพืช <span class="adm-req" aria-hidden="true">*</span></p>
                 <div class="adm-chips" id="recCrops" role="radiogroup" aria-label="ชนิดพืช"></div>
                 <label class="hidden" id="recCropOtherWrap">ชื่อพืช<input name="cropOther" maxlength="60" placeholder="เช่น ถั่วเหลือง"></label>
-                <p class="adm-step-label">วิธีจัดการวัสดุเหลือใช้ทางการเกษตร <span class="adm-req" aria-hidden="true">*</span></p>
+                <p class="adm-recstep-label">วิธีจัดการวัสดุเหลือใช้ทางการเกษตร <span class="adm-req" aria-hidden="true">*</span></p>
                 <div class="adm-chips" id="recMethods" role="radiogroup" aria-label="วิธีจัดการวัสดุเหลือใช้ทางการเกษตร"></div>
                 <label class="hidden" id="recMethodOtherWrap">ระบุวิธีจัดการ<input name="methodOther" maxlength="100" placeholder="เช่น ทำอาหารสัตว์"></label>
               </fieldset>
-              <fieldset class="adm-step">
-                <legend><span class="adm-step-n" aria-hidden="true">3</span>ขนาดพื้นที่</legend>
+              <fieldset class="adm-recstep">
+                <legend><span class="adm-recstep-n" aria-hidden="true">3</span>ขนาดพื้นที่</legend>
                 <label class="adm-area">พื้นที่ที่จัดการ <span class="adm-req" aria-hidden="true">*</span>
                   <span class="adm-unit-input"><input type="number" name="area" min="0.01" step="0.01" inputmode="decimal" required placeholder="0.00"><span>ไร่</span></span>
                 </label>
                 <p class="adm-rec-estimate" id="recEstimate" aria-live="polite"></p>
               </fieldset>
-              <fieldset class="adm-step">
-                <legend><span class="adm-step-n" aria-hidden="true">4</span>หลักฐาน</legend>
-                <p class="adm-step-label">ภาพถ่ายการจัดการ <span class="adm-muted">(1–3 ภาพ)</span></p>
+              <fieldset class="adm-recstep">
+                <legend><span class="adm-recstep-n" aria-hidden="true">4</span>หลักฐาน</legend>
+                <p class="adm-recstep-label">ภาพถ่ายการจัดการ <span class="adm-muted">(1–3 ภาพ)</span></p>
                 <label class="adm-photo-pick"><input type="file" id="recPhotoInput" accept="image/*" capture="environment" multiple><span><i class="fa-solid fa-camera" aria-hidden="true"></i> ถ่ายภาพหรือเลือกภาพ</span></label>
                 <div class="adm-photos" id="recPhotos"></div>
-                <p class="adm-step-label">พิกัดแปลง <span class="adm-muted">(ไม่บังคับ)</span></p>
+                <p class="adm-recstep-label">พิกัดแปลง <span class="adm-muted">(ไม่บังคับ)</span></p>
                 <div class="adm-gps">
                   <span id="recGps" class="adm-gps-text">ยังไม่มีพิกัด</span>
                   <button type="button" class="adm-btn" id="recGpsBtn"><i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i> ดึงพิกัดปัจจุบัน</button>
                   <button type="button" class="adm-btn hidden" id="recGpsClear">ล้างพิกัด</button>
                 </div>
               </fieldset>
-              <details class="adm-step adm-rec-more" id="recSaleWrap">
+              <details class="adm-recstep adm-rec-more" id="recSaleWrap">
                 <summary>การขายให้ผู้รับซื้อ <span class="adm-muted">(ไม่บังคับ)</span></summary>
                 <p class="adm-muted">กรอกเมื่อขายหรือนำวัสดุออกจากแปลงจริง ระบบจะคิดมูลค่าจากปริมาณนี้แทนค่าประมาณ</p>
                 <div class="adm-rec-grid">
@@ -169,7 +169,7 @@
                   <label>ปริมาณที่ขายหรือนำออก<span class="adm-unit-input"><input type="number" name="soldTonnes" min="0" step="any" inputmode="decimal"><span>ตัน</span></span></label>
                 </div>
               </details>
-              <details class="adm-step adm-rec-more" id="recCustomWrap">
+              <details class="adm-recstep adm-rec-more" id="recCustomWrap">
                 <summary>ผลการชั่งน้ำหนักจากแปลงจริง <span class="adm-muted">(ไม่บังคับ สำหรับผู้ที่ชั่งหรือสำรวจ)</span></summary>
                 <p class="adm-muted">ถ้ากรอก ระบบจะคำนวณก๊าซเรือนกระจกจากค่านี้แทนค่ามาตรฐาน กรอกน้ำหนักแห้ง หรือกรอกน้ำหนักสดพร้อมสัดส่วนน้ำหนักแห้ง</p>
                 <div class="adm-rec-grid">
@@ -180,7 +180,7 @@
                 </div>
                 <label>แหล่งอ้างอิง / วิธีวัด<input name="reference" maxlength="200" placeholder="เช่น ชั่งน้ำหนักจากแปลงตัวอย่าง 3 จุด"></label>
               </details>
-              <label class="adm-step-note">หมายเหตุ <span class="adm-muted">(ไม่บังคับ)</span><input name="note" maxlength="300"></label>
+              <label class="adm-recstep-note">หมายเหตุ <span class="adm-muted">(ไม่บังคับ)</span><input name="note" maxlength="300"></label>
             </div>
             <aside class="adm-rec2-side" aria-labelledby="recReviewTitle">
               <div class="adm-review">

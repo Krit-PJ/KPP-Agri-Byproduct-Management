@@ -332,13 +332,13 @@ input:focus, select:focus { outline: none; border-color: var(--ggh-green); box-s
 .adm-rec.adm-rec2 { max-width: none; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
 @media (min-width: 1024px) { .adm-rec.adm-rec2 { grid-template-columns: minmax(0, 1fr) 20rem; } }
 .adm-rec2-main { display: grid; gap: 1rem; min-width: 0; }
-.adm-step { border: 1px solid var(--ggh-line); border-radius: var(--ggh-radius-lg); background: var(--ggh-surface); padding: 1rem 1.1rem 1.1rem; display: grid; gap: .65rem; min-width: 0; }
-.adm-step legend { display: flex; align-items: center; gap: .55rem; font-size: 1.02rem; font-weight: 700; color: var(--ggh-green-dark); padding: 0 .35rem; margin-left: -.35rem; }
-.adm-step-n { display: inline-grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; background: var(--ggh-green); color: #fff; font-size: .88rem; font-weight: 700; }
-.adm-step-label { font-weight: 600; font-size: .9rem; margin-top: .2rem; }
-.adm-step-note { display: grid; gap: .25rem; font-weight: 600; font-size: .9rem; }
-details.adm-step { padding: .7rem 1.1rem; }
-details.adm-step[open] { padding-bottom: 1.1rem; }
+.adm-recstep { border: 1px solid var(--ggh-line); border-radius: var(--ggh-radius-lg); background: var(--ggh-surface); padding: 1rem 1.1rem 1.1rem; display: grid; gap: .65rem; min-width: 0; }
+.adm-recstep legend { display: flex; align-items: center; gap: .55rem; font-size: 1.02rem; font-weight: 700; color: var(--ggh-green-dark); padding: 0 .35rem; margin-left: -.35rem; }
+.adm-recstep-n { display: inline-grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; background: var(--ggh-green); color: #fff; font-size: .88rem; font-weight: 700; }
+.adm-recstep-label { font-weight: 600; font-size: .9rem; margin-top: .2rem; }
+.adm-recstep-note { display: grid; gap: .25rem; font-weight: 600; font-size: .9rem; }
+details.adm-recstep { padding: .7rem 1.1rem; }
+details.adm-recstep[open] { padding-bottom: 1.1rem; }
 .adm-req { color: #a12a1f; }
 .adm-area { display: grid; gap: .3rem; font-weight: 600; font-size: .9rem; max-width: 18rem; }
 .adm-unit-input { display: flex; align-items: stretch; }
