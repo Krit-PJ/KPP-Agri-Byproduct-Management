@@ -651,3 +651,16 @@ button.ggh-method[aria-checked="true"] { border-color: var(--ggh-green); box-sha
   font-size: .8rem; font-weight: 600; color: var(--ggh-green-dark); }
 .ggh-clear:hover { background: #eef6ef; }
 .ggh-bal-bar .is-other, .ggh-bal-key.is-other { background: var(--ggh-seq-2); }
+
+/* ---------- 1.5.1 province card holds its figures ----------
+   Under the tabs, a tinted body carries the context line, the three figure cards and the management-type row as
+   sub-cards of "ข้อมูลจังหวัด…", so the filters and what they produce read as one block. */
+.ggh-topcard-body { display: grid; gap: .85rem; padding: .95rem 1.1rem 1.1rem; background: #f5f8f5; border-top: 1px solid var(--ggh-line); min-width: 0; }
+.ggh-topcard-body > * { order: 0; margin: 0; min-width: 0; }
+.ggh-topcard-body .ggh-cards-context { margin: 0; }
+.ggh-topcard-body .ggh-resmethods { background: var(--ggh-surface); border: 1px solid var(--ggh-line); border-radius: 12px; padding: .9rem 1rem 1rem; box-shadow: none; }
+.ggh-topcard-body .ggh-resmethods .ggh-panel-title { font-size: 1rem; }
+.ggh-topcard-body .ggh-toolbar { background: transparent; border: 0; padding: 0; box-shadow: none; }
+.ggh-topcard .ggh-scope .ggh-tabs { border-bottom: 0; }
+@media (max-width: 767px) { .ggh-topcard-body { padding: .8rem .75rem .9rem; } .ggh-topcard-body .ggh-resmethods { padding: .8rem .75rem .85rem; } }
+@media (min-width: 1024px) { .ggh-topcard-body { padding: 1.05rem 1.35rem 1.3rem; } }

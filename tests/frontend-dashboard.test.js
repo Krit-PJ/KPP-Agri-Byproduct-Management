@@ -35,8 +35,10 @@ assert(/#staff/.test(inline) && /staff-register/.test(inline) && !/sell: \['regi
 ['id="dashMap"', 'id="dashKpis"', 'id="dashHarvest"', 'id="dashMaterials"', 'id="dashTable"', 'id="dashDistrict"', 'id="dashDistrictSel"', 'role="tablist"',
   'data-tab="overview"', 'data-tab="crops"', 'data-tab="market"', 'id="dashCropMonths"', 'id="dashCropStack"', 'id="dashAsOf"', 'id="resCropIcons"', 'id="resMethods"', 'id="resFy"',
   'id="resBalance"', 'id="sarWrap"', 'id="resMethodNote"', 'id="visitCounter"'].forEach((s) => assert(html.includes(s), 'dashboard markup missing: ' + s));
-assert(html.includes('assets/dashboard.js?v=1.5.0') && html.includes('assets/dashboard.css?v=1.5.0') && html.indexOf('assets/config.js') < html.indexOf('assets/dashboard.js'), 'assets 1.5.0, config first');
+assert(html.includes('assets/dashboard.js?v=1.5.1') && html.includes('assets/dashboard.css?v=1.5.1') && html.indexOf('assets/config.js') < html.indexOf('assets/dashboard.js'), 'assets 1.5.1, config first');
 assert(!html.includes('ggh-hero') && !html.includes('ggh-goal"') && html.indexOf('ggh-resmethods-top') > html.indexOf('ggh-kpis-wrap') && html.indexOf('ggh-resmethods-top') < html.indexOf('ggh-mapcard'), '1.5.0: no hero card, types row between the figures and the map');
+{ const top = html.slice(html.indexOf('<div class="ggh-topcard">'), html.indexOf('<section class="ggh-mapcard"'));
+  assert(top.includes('class="ggh-topcard-body"') && top.indexOf('role="tablist"') < top.indexOf('ggh-topcard-body') && top.includes('id="dashKpiMeta"') && top.includes('id="dashKpis"') && top.includes('id="resMethods"') && top.includes('id="dashCropChips"'), '1.5.1: figures and the types row are sub-cards of the province card'); }
 assert(js.includes('state.resMethod') && js.includes('function balanceScope()') && js.includes('function targetPct(code)') && js.includes('คิดเป็นมูลค่า') && js.includes('ปริมาณชีวมวลที่จัดการได้'), '1.5.0: type cards filter the page; the balance bar follows the filters');
 const KPP = 'https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js';
 [html, admin].forEach((h, i) => assert(h.indexOf(KPP) > 0 && h.indexOf(KPP) < h.indexOf('assets/sso-client.js') && h.indexOf('assets/sso-client.js') < h.indexOf('assets/staff-auth.js'), 'kpp-id.js → sso-client.js → staff-auth.js order in ' + (i ? 'admin' : 'index')));
@@ -78,6 +80,6 @@ assert(sso.includes("const AUD = 'ABM'") && !sso.includes("'GGH'") && sso.includ
 assert(/S\.staff\(p, call\)/.test(staffAuth) && /ssoAuto/.test(staffAuth) && /S\.registerTicket\(input\)/.test(staffAuth) && staffAuth.includes("'abm_admin_token'") && staffAuth.includes("'abm_sso_prev'"), 'officer sign-in/registration through SSO; own session keys');
 assert(/showSsoPrev/.test(adminJs) && /ABM_SSO\.logout\(\)/.test(adminJs) && /ssoAuto\(\)/.test(adminJs) && adminJs.includes("'abm_admin_token'"), 'officer pages: previous sign-in notice, logout everywhere, auto sign-in');
 const cfg = {}; new vm.Script(config).runInNewContext({ window: cfg });
-assert(cfg.ABM_CONFIG && cfg.ABM_CONFIG.GGH_URL === 'https://krit-pj.github.io/Green_Gain_Hub-KPP/' && cfg.ABM_CONFIG.SPREADSHEET_ID === '1wTzRcRx3sCoUZD9ykFgl17WOGVw9BtVkVwqtAftyVU4' && cfg.ABM_CONFIG.BUILD_VERSION === '1.5.0', 'config');
+assert(cfg.ABM_CONFIG && cfg.ABM_CONFIG.GGH_URL === 'https://krit-pj.github.io/Green_Gain_Hub-KPP/' && cfg.ABM_CONFIG.SPREADSHEET_ID === '1wTzRcRx3sCoUZD9ykFgl17WOGVw9BtVkVwqtAftyVU4' && cfg.ABM_CONFIG.BUILD_VERSION === '1.5.1', 'config');
 assert(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(cfg.ABM_CONFIG.SHEETS_API_URL) && !cfg.ABM_CONFIG.SHEETS_API_URL.includes('AKfycbylUG') && !cfg.ABM_CONFIG.SHEETS_API_URL.includes('AKfycbxoo4'), 'config points at the ABM web app (not Green Gain Hub or Smart Agri): ' + cfg.ABM_CONFIG.SHEETS_API_URL);
 console.log('PASS: SSO for officers (aud ABM) and config');
