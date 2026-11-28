@@ -936,8 +936,11 @@
       if (REDUCED.matches || from === to || !isFinite(to)) return;
       const t0 = performance.now(), dur = 520;
       const show = (v) => { node.nodeValue = m[1] + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + m[3]; };
-      const step = (now) => { const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3); show(from + (to - from) * e); if (k < 1) requestAnimationFrame(step); else node.nodeValue = text; };
+      let done = false;
+      const finish = () => { done = true; node.nodeValue = text; };
+      const step = (now) => { if (done) return; const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3); show(from + (to - from) * e); if (k < 1) requestAnimationFrame(step); else finish(); };
       show(from); requestAnimationFrame(step);
+      setTimeout(() => { if (!done) finish(); }, dur + 80);   // a hidden tab pauses animation frames: always land on the real value
     });
   }
   function blurIn() {
