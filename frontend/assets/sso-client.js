@@ -33,10 +33,10 @@
     try { const u = window.ABM_CONFIG && window.ABM_CONFIG.SHEETS_API_URL; if (u) fetch(u + (u.includes('?') ? '&' : '?') + 'api=v1&endpoint=health', { cache: 'no-store' }).catch(() => {}); } catch (e) { /* ignore */ }
   }
   /** Officer: call = ABM_STAFF.call (POST officer API). */
-  async function staff(phone, call) {
+  async function staff(phone, call, remember) {
     const id = await identity(phone, (p) => call('ssoProvisionServer', { phone: p }), false);
     const t = await ticketOf(id);
-    const result = await call('ssoStaffLoginServer', { ticket: t.ticket });
+    const result = await call('ssoStaffLoginServer', { ticket: t.ticket, remember: !!remember });
     return { id, result };
   }
   /** 1.2.0: a one-use ticket for registering an officer — signs in to the central identity, or creates it (position เจ้าหน้าที่). */

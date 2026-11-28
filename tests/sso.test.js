@@ -59,6 +59,29 @@ bad(post('ssoStaffLoginServer', [{ ticket: t1 }]), /ถูกใช้แล้�
 bad(post('ssoStaffLoginServer', [{ ticket: issue('0833333333', 'GGH') }]), /ไม่ได้ออกให้ระบบนี้/, 'a ticket for Green Gain Hub is refused here');
 bad(post('ssoStaffLoginServer', [{ ticket: 'not a ticket' }]), /ไม่ถูกต้อง/, 'malformed ticket refused before calling Agri-Risk');
 
+/* 2b. 1.7.0 remembered device: one call instead of three, signed, expires, voided by "sign out everywhere" and by suspension */
+r = post('ssoStaffLoginServer', [{ ticket: issue('0833333333', 'ABM') }]);
+check(r.ok && !r.result.device, 'no device key unless the officer asks to be remembered');
+r = post('ssoStaffLoginServer', [{ ticket: issue('0833333333', 'ABM'), remember: true }]);
+const dev = r.result.device, uname = r.result.username;
+check(/^v1\|[a-z0-9._-]+\|\d+\|\d+\|[A-Za-z0-9_-]+$/.test(dev) && r.result.deviceDays === 30, 'device key issued: ' + dev);
+check(!JSON.stringify(props).includes(dev.split('|')[4]) && /^[0-9a-f]{64}$/.test(props.ABM_DEVICE_SECRET), 'secret stays in Script Properties, signature is not stored');
+const before = idp.calls.length;
+r = post('deviceResumeServer', [{ device: dev }]);
+check(r.ok && /^[0-9a-f]{64}$/.test(r.result.token) && r.result.role === 'admin' && idp.calls.length === before, 'resume: one ABM call, no Agri-Risk round trip');
+const tampered = dev.replace('|' + uname + '|', '|krit|');
+bad(post('deviceResumeServer', [{ device: tampered }]), /DEVICE_EXPIRED/, 'a key edited to another account is refused');
+const p5 = dev.split('|'); p5[2] = String(Date.now() - 1000);
+bad(post('deviceResumeServer', [{ device: p5.join('|') }]), /DEVICE_EXPIRED/, 'changed expiry breaks the signature');
+bad(post('deviceResumeServer', [{ device: 'junk' }]), /DEVICE_EXPIRED/, 'junk refused');
+ok(post('deviceForgetAllServer', [], r.result.token), 'sign out everywhere');
+bad(post('deviceResumeServer', [{ device: dev }]), /DEVICE_EXPIRED/, 'old keys void after sign out everywhere');
+const dev2 = ok(post('ssoStaffLoginServer', [{ ticket: issue('0833333333', 'ABM'), remember: true }]), 'sign in again').device;
+const row = sheets.admins.rows.find((x) => x[0] === uname); row[3] = 'disabled';
+bad(post('deviceResumeServer', [{ device: dev2 }]), /ระงับ/, 'a suspended account cannot resume');
+row[3] = 'active';
+check(post('deviceResumeServer', [{ device: dev2 }]).ok, 'resume works again once active');
+
 /* 3. identity from another officer system, no officer account here → need_register */
 idp.people['0855555555'] = { phone: '0855555555', fullName: 'ใหม่ ยังไม่ลงทะเบียน', status: 'active', scope: 'all' };
 r = post('ssoStaffLoginServer', [{ ticket: issue('0855555555', 'ABM') }]);
@@ -88,7 +111,7 @@ bad(post('ssoStaffLoginServer', [{ ticket: issue('0833333333', 'ABM') }]), /ป�
 check(post('staffLoginServer', [{ phone: '0833333333' }]).ok, 'off: old sign-in works');
 check(post('ssoProvisionServer', [{ phone: '0833333333' }]).result.status === 'off', 'off: nothing sent to Agri-Risk');
 const h = JSON.parse((api.doGet({ parameter: { api: 'v1', endpoint: 'health' } }), env.out().body));
-check(h.feature === 'ABM_SPLIT' && h.system === 'ABM' && h.apiVersion === '1.5.0', 'health shows ABM 1.4.0');
+check(h.feature === 'ABM_SPLIT' && h.system === 'ABM' && h.apiVersion === '1.7.0', 'health shows ABM 1.4.0');
 bad(post('ssoLoginServer', [{ ticket: issue('0833333333', 'ABM') }]), /Method not allowed/, 'no farmer/buyer SSO method in ABM');
 
 /* 7. 1.2.0: SSO required by default · farmers/buyers use Green Gain Hub only · officer registration proves the phone and waits for approval */

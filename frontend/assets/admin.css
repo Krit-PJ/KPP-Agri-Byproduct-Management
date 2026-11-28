@@ -389,3 +389,50 @@ details.adm-recstep[open] { padding-bottom: 1.1rem; }
 .adm-report-kpis b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
 .adm-report-kpis small { font-size: .72rem; color: var(--ggh-muted); line-height: 1.3; }
 @media print { .adm-report-kpis { grid-template-columns: repeat(5, 1fr); } }
+
+/* ---------- 1.7.0 officer pages in the style of the clip (same language as the homepage C-1) ----------
+   Soft green wash behind, the menu as pills on one light glass bar, each view a glass panel that blurs in when chosen,
+   figures count up and bars grow. Text stays at full ink; one backdrop-filter per screen. */
+body.adm { background: radial-gradient(110% 80% at 0% 0%, #e2f0e5 0%, rgba(226,240,229,0) 55%),
+  radial-gradient(90% 70% at 100% 100%, #e8f2da 0%, rgba(232,242,218,0) 60%), #f2f6f2; }
+.adm-nav { background: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.9); border-radius: 16px; padding: .35rem; gap: .3rem;
+  box-shadow: 0 0 0 1px rgba(26,93,48,.08), 0 8px 24px -16px rgba(15,77,36,.3); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .adm-nav { background: rgba(255,255,255,.6); -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%); }
+}
+.adm-nav button { border: 0; border-radius: 999px; min-height: 42px; padding: 0 1rem; color: var(--ggh-ink); font-weight: 600; transition: background-color .15s, color .15s; }
+.adm-nav button:hover { background: rgba(26,127,55,.08); }
+.adm-nav button[aria-current="page"] { background: var(--ggh-green); color: #fff; border: 0; box-shadow: 0 4px 12px -6px rgba(26,127,55,.6); }
+.adm-nav-group { color: var(--ggh-muted); }
+@media (min-width: 960px) {
+  .adm-nav { border-right: 0; top: 7.5rem; }
+  .adm-nav button { border-left: 0; border-radius: 12px; text-align: left; }
+  .adm-nav button[aria-current="page"] { border-left: 0; background: var(--ggh-green); }
+}
+.adm-subnav button { background: rgba(255,255,255,.75); }
+.adm-subnav button[aria-current="page"] { background: var(--ggh-green); border-color: var(--ggh-green); color: #fff; }
+.adm-view:not(.hidden) { background: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.85); border-radius: 20px; padding: clamp(.9rem, 2.2vw, 1.4rem);
+  box-shadow: 0 0 0 1px rgba(26,93,48,.06), 0 18px 40px -28px rgba(15,77,36,.35); }
+.adm-view h2 { letter-spacing: -.005em; }
+.adm-card, .adm-sumtile, .adm-sumbars, .adm-recstep, .adm-review, .adm-step { border-color: rgba(26,93,48,.12); box-shadow: 0 1px 0 rgba(255,255,255,.9) inset; }
+.adm-sumtile b { font-size: 1.65rem; }
+.adm-login { background: rgba(255,255,255,.8); border-color: rgba(255,255,255,.9); border-top: 4px solid var(--ggh-green); box-shadow: 0 0 0 1px rgba(26,93,48,.08), 0 18px 40px -26px rgba(15,77,36,.4); }
+.adm-remember { display: flex; align-items: flex-start; gap: .5rem; font-weight: 500; font-size: .88rem; margin-top: .75rem; line-height: 1.4; }
+.adm-remember .adm-muted { display: block; font-size: .8rem; font-weight: 400; }
+.adm-remember input { width: 1.1rem; height: 1.1rem; margin-top: .15rem; accent-color: var(--ggh-green); flex: 0 0 auto; }
+.adm-resuming { display: none; align-items: center; gap: .55rem; margin-top: .75rem; padding: .6rem .8rem; border-radius: 10px; background: #eef6ef; color: var(--ggh-green-dark); font-weight: 600; font-size: .92rem; }
+.adm-login.is-resuming .adm-resuming { display: flex; }
+.adm-login.is-resuming form, .adm-login.is-resuming .adm-login-tabs { opacity: .45; pointer-events: none; }
+.adm-spin { width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid rgba(26,127,55,.25); border-top-color: var(--ggh-green); }
+.adm-devices { display: grid; gap: .5rem; max-width: 36rem; }
+.adm-devices h3 { margin: 0; font-size: 1rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .adm-spin { animation: adm-spin .8s linear infinite; }
+  @keyframes adm-spin { to { transform: rotate(360deg); } }
+  .adm-sumbars-track i, .adm-recs-balance .ggh-bal-bar > i { transform-origin: left center; animation: ggh-grow-x .6s cubic-bezier(.2,.7,.2,1) both; }
+  .adm-nav button[aria-current="page"], .adm-subnav button[aria-current="page"] { animation: ggh-pop .25s ease-out; }
+}
+@media print {
+  body.adm { background: #fff; }
+  .adm-view:not(.hidden) { background: #fff; border: 0; box-shadow: none; padding: 0; }
+}

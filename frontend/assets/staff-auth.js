@@ -6,6 +6,10 @@
   const cfg = window.ABM_CONFIG || {};
   const API = cfg.SHEETS_API_URL || '';
   const TOKEN_KEY = 'abm_admin_token';
+  // 1.7.0: a remembered device keeps a signed key (30 days) so the officer pages open in one call, without the SSO round trip.
+  const DEVICE_KEY = 'abm_device';
+  const store = { get: () => { try { return localStorage.getItem(DEVICE_KEY) || ''; } catch (e) { return ''; } },
+    set: (v) => { try { if (v) localStorage.setItem(DEVICE_KEY, v); else localStorage.removeItem(DEVICE_KEY); } catch (e) { /* private mode */ } } };
   const esc = (v) => String(v ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[c]);
   const digits = (v) => String(v || '').replace(/\D/g, '');
   let meta = null;
@@ -63,16 +67,17 @@
 
   /** Signs in by phone; the session token is kept for admin.html (same tab).
       2.4.0: through the central identity (SSO) when available; the old phone sign-in is the fallback. */
-  async function login(phone) {
+  async function login(phone, opts) {
+    const remember = !!(opts && opts.remember);
     const p = digits(phone);
     if (!/^0\d{9}$/.test(p)) throw new Error('กรุณากรอกหมายเลขโทรศัพท์ 10 หลัก');
     const S = window.ABM_SSO;
     if (S && S.available()) {
       try {
-        const { id, result } = await S.staff(p, call);
+        const { id, result } = await S.staff(p, call, remember);
         if (result.status === 'need_register') throw new Error('ไม่พบหมายเลขนี้ กรุณาลงทะเบียนเจ้าหน้าที่ก่อน');
         if (result.status === 'market_user') throw new Error('MARKET_ACCOUNT: ' + result.message);
-        sessionStorage.setItem(TOKEN_KEY, result.token);
+        sessionStorage.setItem(TOKEN_KEY, result.token); store.set(result.device || '');
         result.prevLogin = id && id.prevLogin;
         // shown once on the officer pages ("previous sign-in" + "not me"), also after the homepage popup redirects there
         if (result.prevLogin) sessionStorage.setItem('abm_sso_prev', JSON.stringify(result.prevLogin)); else sessionStorage.removeItem('abm_sso_prev');
@@ -82,9 +87,17 @@
         if (!S.fallback(err)) throw err;
       }
     }
-    const r = await call('staffLoginServer', { phone: p });
-    sessionStorage.setItem(TOKEN_KEY, r.token);
+    const r = await call('staffLoginServer', { phone: p, remember });
+    sessionStorage.setItem(TOKEN_KEY, r.token); store.set(r.device || '');
     return r;
+  }
+
+  /** 1.7.0: opens the officer session from the remembered device (one call). Returns the session or null; a refused key is forgotten. */
+  async function resume() {
+    const device = store.get();
+    if (!device || sessionStorage.getItem(TOKEN_KEY)) return null;
+    try { const r = await call('deviceResumeServer', { device }); sessionStorage.setItem(TOKEN_KEY, r.token); return r; }
+    catch (err) { if (!/Failed to fetch|NetworkError|Load failed|HTTP 5/i.test(String(err.message))) store.set(''); throw err; }
   }
 
   /** 1.2.0: registering proves the phone through the central identity (a one-use ticket), then waits for approval.
@@ -108,6 +121,6 @@
     return null;
   }
 
-  window.ABM_STAFF = { TOKEN_KEY, call, loadMeta, prepareRegister, syncOffice, readRegister, login, register, ssoAuto, digits,
-    hasSession: () => !!sessionStorage.getItem(TOKEN_KEY) };
+  window.ABM_STAFF = { TOKEN_KEY, call, loadMeta, prepareRegister, syncOffice, readRegister, login, register, ssoAuto, digits, resume,
+    hasSession: () => !!sessionStorage.getItem(TOKEN_KEY), hasDevice: () => !!store.get(), forgetDevice: () => store.set('') };
 })();
