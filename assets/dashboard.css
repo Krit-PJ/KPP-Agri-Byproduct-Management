@@ -747,4 +747,4 @@ button.ggh-method[aria-checked="true"] { border-color: var(--ggh-green); box-sha
 /* 1.7.0 "remember this device" in the officer sign-in popup */
 .ggh-remember { display: flex; align-items: flex-start; gap: .5rem; margin: .7rem 0 .2rem; font-size: .88rem; font-weight: 500; line-height: 1.4; text-align: left; }
 .ggh-remember input { width: 1.1rem; height: 1.1rem; margin-top: .15rem; accent-color: var(--ggh-green); flex: 0 0 auto; }
-.ggh-remember span { color: var(--ggh-muted); }
+.ggh-remember small { display: block; color: var(--ggh-muted); font-size: .8rem; }

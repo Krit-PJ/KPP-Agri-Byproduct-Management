@@ -418,6 +418,7 @@ body.adm { background: radial-gradient(110% 80% at 0% 0%, #e2f0e5 0%, rgba(226,2
 .adm-sumtile b { font-size: 1.65rem; }
 .adm-login { background: rgba(255,255,255,.8); border-color: rgba(255,255,255,.9); border-top: 4px solid var(--ggh-green); box-shadow: 0 0 0 1px rgba(26,93,48,.08), 0 18px 40px -26px rgba(15,77,36,.4); }
 .adm-remember { display: flex; align-items: flex-start; gap: .5rem; font-weight: 500; font-size: .88rem; margin-top: .75rem; line-height: 1.4; }
+.adm-remember .adm-muted { display: block; font-size: .8rem; font-weight: 400; }
 .adm-remember input { width: 1.1rem; height: 1.1rem; margin-top: .15rem; accent-color: var(--ggh-green); flex: 0 0 auto; }
 .adm-resuming { display: none; align-items: center; gap: .55rem; margin-top: .75rem; padding: .6rem .8rem; border-radius: 10px; background: #eef6ef; color: var(--ggh-green-dark); font-weight: 600; font-size: .92rem; }
 .adm-login.is-resuming .adm-resuming { display: flex; }
