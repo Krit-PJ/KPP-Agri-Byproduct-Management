@@ -467,8 +467,8 @@ body.adm { background: radial-gradient(110% 80% at 0% 0%, #e2f0e5 0%, rgba(226,2
 .adm-import-panel h3 { margin: 0; }
 .adm-import-panel label { display: grid; gap: .25rem; font-weight: 600; font-size: .9rem; }
 .adm-biomass-set { display: grid; gap: .7rem; }
-.adm-radio-pill { cursor: pointer; }
-.adm-radio-pill input { position: absolute; opacity: 0; pointer-events: none; }
+.adm-radio-pill { cursor: pointer; position: relative; }
+.adm-radio-pill input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .adm-radio-pill[aria-checked="true"] { background: var(--ggh-green); border-color: var(--ggh-green); color: #fff; }
 .adm-radio-pill:has(input:focus-visible) { outline: 3px solid rgba(26,127,55,.35); outline-offset: 2px; }
 .adm-biomass-live { margin: 0; padding: .55rem .8rem; border-radius: 10px; background: #eef6ef; color: var(--ggh-green-dark); font-size: .9rem; }
@@ -476,4 +476,4 @@ body.adm { background: radial-gradient(110% 80% at 0% 0%, #e2f0e5 0%, rgba(226,2
 .adm-ghg-const[open] { display: grid; gap: .8rem; }
 .adm-ghg-history .adm-table td:last-child { white-space: nowrap; }
 /* grid children may shrink, so a wide table scrolls inside its own box instead of widening the page */
-.adm-view > *, .adm-ghg-const > * { min-width: 0; }
+.adm-app > *, .adm-view > *, .adm-ghg-const > *, .adm-form > * { min-width: 0; }
