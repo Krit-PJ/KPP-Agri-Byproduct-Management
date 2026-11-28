@@ -477,3 +477,5 @@ body.adm { background: radial-gradient(110% 80% at 0% 0%, #e2f0e5 0%, rgba(226,2
 .adm-ghg-history .adm-table td:last-child { white-space: nowrap; }
 /* grid children may shrink, so a wide table scrolls inside its own box instead of widening the page */
 .adm-app > *, .adm-view > *, .adm-ghg-const > *, .adm-form > * { min-width: 0; }
+/* the table box is the containing block of its own screen-reader labels, so they scroll with the table instead of widening the page */
+.adm-table-wrap { position: relative; }
