@@ -741,6 +741,5 @@ button.ggh-method[aria-checked="true"] { border-color: var(--ggh-green); box-sha
   @keyframes ggh-pop { from { transform: scale(.96); } to { transform: none; } }
 }
 
-/* 1.6.0 long units shorten on a phone (the full name stays in the abbr title) */
-.u-short { display: none; text-decoration: none; }
-@media (max-width: 639px) { .ggh-strip .u-long { display: none; } .ggh-strip .u-short { display: inline; } }
+/* 1.6.0 on a phone the unit takes its own small line under the number, so the long Thai GHG unit wraps cleanly */
+@media (max-width: 639px) { .ggh-strip .ggh-card-value { display: block; } .ggh-strip .ggh-card-unit { display: block; font-size: .7rem; line-height: 1.3; } }
