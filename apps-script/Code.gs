@@ -21,7 +21,7 @@
  *   ?api=v1&endpoint=health           Public version check
  *   POST {method,args,token}          Officer / admin API (Admin.gs)
  */
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.8.1';
 const APP_FEATURE = 'ABM_SPLIT';
 const APP_NAME = 'ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร';
 // Database: "Agri By-product Management KPP — Database (v1.0.0)" in Drive folder "10. Agri By-product Management".
@@ -147,18 +147,22 @@ function buildPublicSummary_(now) {
   let totalArea = 0;
   let withCoordinates = 0;
 
+  const allBuyerPrices = [];   // 1.8.1: บาท/ไร่ — บาท/ตัน × BioRate (ประมาณการ); บาท/ก้อน not averaged
   buyers.forEach(function (r) {
-    const material = resolvedMaterial_(r[13], r[14], r[7]) || 'ไม่ระบุ';
     const capacity = leadingNumber_(r[10]);
-    const price = maybeNumber_(r[9]);
     const district = hasCoordinates_(r[5], r[6]) ? districtForPoint_(Number(r[5]), Number(r[6]), districts) : null;
     const target = district ? byDistrict[district.code] : outside;
     target.buyers++;
     target.capacityTonPerDay += capacity;
-    const m = materialStat_(byMaterial, material);
-    m.buyers++;
-    m.capacityTonPerDay += capacity;
-    if (price !== '' && price > 0) { m.priceSum += price; m.priceCount++; }
+    const seen = {};
+    gghBuyerOffers_(r).forEach(function (o) {   // 1.8.1: the point counts under every material it buys
+      const m = materialStat_(byMaterial, o.material);
+      if (!seen[o.material]) { seen[o.material] = true; m.buyers++; m.capacityTonPerDay += capacity; }
+      const ref = refs[o.material] || null;
+      const perRai = gghOfferPerRai_(o, ref && ref.bioRate !== null ? ref.bioRate : null);
+      if (perRai !== null) { m.priceSum += perRai; m.priceCount++; allBuyerPrices.push(perRai); }
+      if (o.price > 0) { const u = m.units || (m.units = {}); const x = u[o.unit] || (u[o.unit] = { min: o.price, max: o.price }); x.min = Math.min(x.min, o.price); x.max = Math.max(x.max, o.price); }
+    });
   });
 
   farmers.forEach(function (r) {
@@ -207,6 +211,7 @@ function buildPublicSummary_(now) {
       buyers: m.buyers,
       capacityTonPerDay: round_(m.capacityTonPerDay, 1),
       avgBuyerPriceBahtPerRai: avgPrice === null ? null : round_(avgPrice, 2),
+      priceByUnit: m.units || {},   // 1.8.1: {rai|ton|bale: {min, max}} as the buyers set them
       potentialValueBaht: avgPrice === null ? null : Math.round(m.areaRai * avgPrice),
       bioRateTonPerRai: ref && ref.bioRate !== null ? ref.bioRate : null,
       residueTon: ref && ref.bioRate !== null ? round_(m.areaRai * ref.bioRate, 1) : null
@@ -215,7 +220,6 @@ function buildPublicSummary_(now) {
 
   const valueKnown = materialList.filter(function (m) { return m.potentialValueBaht !== null; });
   const residueKnown = materialList.filter(function (m) { return m.residueTon !== null; });
-  const allBuyerPrices = buyers.map(function (r) { return maybeNumber_(r[9]); }).filter(function (v) { return v !== '' && v > 0; });
 
   const districtList = districts.map(function (d) { return finalizeDistrictStat_(byDistrict[d.code], refs); });
   if (outside.plots || outside.buyers) districtList.push(finalizeDistrictStat_(outside, refs));
@@ -253,7 +257,7 @@ function buildPublicSummary_(now) {
     goals: activeGoals_(),
     notes: {
       area: 'พื้นที่แปลง (ไร่) แปลงจากรูปแบบ ไร่-งาน-ตร.ว. ของแบบฟอร์ม',
-      price: 'ราคารับซื้อเป็นค่าเฉลี่ยที่ผู้รับซื้อสถานะ Active ระบุ (บาท/ไร่)',
+      price: 'ราคารับซื้อเฉลี่ย (บาท/ไร่) จากผู้รับซื้อสถานะ Active — ราคาบาท/ตันแปลงเป็นบาท/ไร่ด้วย BioRate (ประมาณการ) ราคาบาท/ก้อนไม่นำมาเฉลี่ย',
       residue: residueKnown.length ? 'ปริมาณวัสดุเหลือใช้ทางการเกษตรประมาณจาก BioRate (ตัน/ไร่) ในชีต Research_Refs'
         : 'ยังไม่ได้กำหนด BioRate (ตัน/ไร่) ในชีต Research_Refs จึงยังไม่ประมาณปริมาณวัสดุเหลือใช้ทางการเกษตร',
       privacy: 'ข้อมูลสรุปเชิงสถิติเท่านั้น ไม่มีชื่อ เบอร์โทร หรือพิกัดรายแปลง',
@@ -726,4 +730,35 @@ function ensureSettingsSheet_() {
     sh.setFrozenRows(1);
   }
   return 'PASS: Config sheet is ready';
+}
+
+/* ---------------- 1.8.1 (GGH 4.3.0): a buy point buys several materials, each with its own price unit ----------------
+   Feed buyers rows: X (index 23) Price_Unit of the first material, Y (index 24) Materials_JSON
+   [{materialType, materialOther, material, price, unit}] — older rows: one material (H/N/O, price J) in บาท/ไร่. */
+const GGH_PRICE_UNITS = { rai: 'บาท/ไร่', ton: 'บาท/ตัน', bale: 'บาท/ก้อน' };
+function gghPriceUnit_(v) { v = String(v || '').trim().toLowerCase(); return GGH_PRICE_UNITS[v] ? v : 'rai'; }
+function gghBuyerOffers_(r) {
+  const raw = String(r[24] || '').trim();
+  if (raw) {
+    try {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length) {
+        const out = list.map(function (o) {
+          return { material: text_(o.material) || resolvedMaterial_(o.materialType, o.materialOther, ''), price: maybeNumber_(o.price), unit: gghPriceUnit_(o.unit) };
+        }).filter(function (o) { return o.material; });
+        if (out.length) return out;
+      }
+    } catch (e) { /* fall back to the old columns */ }
+  }
+  return [{ material: resolvedMaterial_(r[13], r[14], r[7]) || 'ไม่ระบุ', price: maybeNumber_(r[9]), unit: gghPriceUnit_(r[23]) }];
+}
+function gghOfferText_(o) {
+  return o.material + ' ' + (o.price === '' || o.price === null || o.price === undefined ? 'ราคาตกลงกัน' : Number(o.price).toLocaleString('en-US') + ' ' + GGH_PRICE_UNITS[o.unit]);
+}
+/** บาท/ไร่ of one offer: บาท/ไร่ as is; บาท/ตัน × BioRate (ตัน/ไร่) = ประมาณการ; บาท/ก้อน → null (not averaged). */
+function gghOfferPerRai_(o, bioRate) {
+  if (!(o.price > 0)) return null;
+  if (o.unit === 'rai') return o.price;
+  if (o.unit === 'ton' && bioRate > 0) return o.price * bioRate;
+  return null;
 }

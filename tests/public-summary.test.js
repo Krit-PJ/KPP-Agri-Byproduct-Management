@@ -36,7 +36,8 @@ const sheets = {
   ]),
   buyers: sheet([buyersHead,
     ['b1','', 'ศูนย์','ลับ','0625419987', 16.075923, 99.885041, 'ฟางข้าว','ฟาง 2-5 แดด', 30, '45', 'Active', '0625419987', 'ฟางข้าว', ''],
-    ['b2','', 'ศูนย์','ลับ','0829163605', 16.121696, 99.943756, 'ฟางข้าว','ฟาง 2-5 แดด', 40, '15 ตัน/วัน', 'Active', '0829163605', 'ฟางข้าว', ''],
+    ['b2','', 'ศูนย์','ลับ','0829163605', 16.121696, 99.943756, 'ฟางข้าว','ฟาง 2-5 แดด', 40, '15 ตัน/วัน', 'Active', '0829163605', 'ฟางข้าว', '', '', 'ALL', '', '', '', '', '', '', 'rai',
+      JSON.stringify([{ material: 'ฟางข้าว', price: 40, unit: 'rai' }, { material: 'ใบอ้อย', price: 20, unit: 'bale' }])],   // 1.8.1: GGH 4.3.0 offers
     ['b3','', 'ปิด','แล้ว','0899999999', 16.1, 99.8, 'ฟางข้าว','', 999, '999', 'Deleted', '0899999999', 'ฟางข้าว', '']
   ]),
   Research_Refs: sheet([['ID','Type','SubType','BioRate','PriceMin','PriceMax','PriceAvg','Source'], ['r1','ฟางข้าว','', 0.5, '', '', '', 'test value']]),
@@ -109,6 +110,9 @@ assert(s.totals.plotsWithCoordinates === 4, 'plots with coordinates is wrong');
 assert(Math.abs(s.totals.areaRai - (20.3125 + 10 + 30.5 + 2.75 + 5)) < 0.01, 'total area is wrong');
 assert(s.totals.buyers === 2 && s.totals.capacityTonPerDay === 60, 'Active buyer totals are wrong');
 assert(s.totals.avgBuyerPriceBahtPerRai === 35, 'average buyer price is wrong');
+{ const cane = s.byMaterial.find((m) => m.material === 'ใบอ้อย'), rice = s.byMaterial.find((m) => m.material === 'ฟางข้าว');
+  assert(cane && cane.buyers === 1 && cane.avgBuyerPriceBahtPerRai === null && cane.priceByUnit.bale.min === 20, '1.8.1: second material counted, บาท/ก้อน kept apart, not averaged');
+  assert(rice.buyers === 2 && rice.priceByUnit.rai.min === 30 && rice.priceByUnit.rai.max === 40, '1.8.1: prices per unit'); }
 assert(s.upcomingHarvest.days30.plots === 1 && s.upcomingHarvest.days60.plots === 2, 'upcoming harvest windows are wrong');
 
 // 1.1.0: plots Green Gain Hub no longer shows (N days after harvest) leave the market numbers, not the harvest calendar
@@ -136,7 +140,7 @@ const json = JSON.stringify(s);
 // HTTP routing: JSON, JSONP, health, key gate, and RPC untouched.
 api.doGet({ parameter: { api: 'v1', endpoint: 'summary', key: 'YOUR_KEY' } });
 let out = JSON.parse(lastOutput.body);
-assert(out.ok && out.api === 'v1' && out.apiVersion === '1.8.0' && out.data.totals.farmerPlots === 5 && lastOutput.mime === 'json', 'JSON summary route failed: ' + lastOutput.body.slice(0, 200));
+assert(out.ok && out.api === 'v1' && out.apiVersion === '1.8.1' && out.data.totals.farmerPlots === 5 && lastOutput.mime === 'json', 'JSON summary route failed: ' + lastOutput.body.slice(0, 200));
 assert(out.data.crops && out.data.crops.ok && Array.isArray(out.data.crops.crops) && out.data.crops.crops.length === 0, 'summary must include an empty crops block before any import: ' + JSON.stringify(out.data.crops));
 api.doGet({ parameter: { api: 'v1', endpoint: 'summary', callback: 'cb_1' } });
 assert(lastOutput.body.startsWith('cb_1(') && lastOutput.mime === 'js', 'JSONP summary route failed');
@@ -151,7 +155,7 @@ api.doGet({ parameter: { api: 'v1', endpoint: 'summary', key: 'secret-1' } });
 assert(JSON.parse(lastOutput.body).ok === true, 'matching key must be accepted');
 props = {};
 api.doGet({ parameter: { action: 'rpc', method: 'getApiInfoServer', args: '[]' } });
-assert(JSON.parse(lastOutput.body).endpoint === 'health' && JSON.parse(lastOutput.body).apiVersion === '1.8.0', 'ABM has no JSONP RPC: a bare GET answers health');
+assert(JSON.parse(lastOutput.body).endpoint === 'health' && JSON.parse(lastOutput.body).apiVersion === '1.8.1', 'ABM has no JSONP RPC: a bare GET answers health');
 assert(s.market && s.market.source === 'Green Gain Hub', 'summary says where the market numbers come from');
 
 // Without Districts.gs the summary still works (everything falls into OTHER).
