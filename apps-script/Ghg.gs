@@ -56,8 +56,23 @@ const GHG_DEFAULT_CROPS = [
 const GHG_SHEETS = {
   ghg_params: ['Key', 'Value', 'Unit', 'Description'],
   ghg_crops: ['Crop_Key', 'Crop_Name', 'Consumed_t_ha', 'Cf', 'Residue_t_rai', 'Residue_Name', 'Residue_Reference', 'IPCC_Reference', 'Active', 'Sort_Order', 'Updated_At', 'Updated_By',
-    'Price_baht_kg', 'Price_Reference', 'Use_Global_Price', 'Removable_Pct', 'Removable_Reference']
+    'Price_baht_kg', 'Price_Reference', 'Use_Global_Price', 'Removable_Pct', 'Removable_Reference',
+    'Biomass_Method', 'RPR_t_t', 'Yield_t_rai', 'DMF'],
+  // 1.8.0: every change to the formula values keeps the set it replaced, so any earlier set can be restored
+  ghg_history: ['Version', 'Time', 'By', 'Action', 'Note', 'Params_JSON', 'Crops_JSON']
 };
+/* 1.8.0 biomass per rai (ตัน/ไร่) — two ways, chosen per crop:
+     rpr   : อัตราชีวมวลต่อผลผลิต (ตันชีวมวล/ตันผลผลิต) × ผลผลิตเฉลี่ย (ตัน/ไร่)   ← สกว., the province's reference document
+     fixed : one number in ตัน/ไร่ (the method before 1.8.0)
+   GHG in the residue mode uses the same biomass: area × biomass × DMF (dry share) × Cf × EF, so the biomass and GHG figures agree.
+   The values below are the province's FY 2570 reference (สกว.), applied once on the first call after deploying 1.8.0. */
+const GHG_BIOMASS_REF = 'สกว. ตามเอกสารเป้าหมายการจัดการวัสดุเหลือใช้ทางการเกษตร ปีงบประมาณ 2570 (อัตราชีวมวลต่อผลผลิต × ผลผลิตเฉลี่ย)';
+const GHG_BIOMASS_V180 = {
+  rice: { rpr: 1.522, yieldTRai: 0.613, residueName: 'ฟางข้าว' },
+  sugarcane: { rpr: 0.153, yieldTRai: 9.746, residueName: 'ยอดและใบอ้อย' },
+  maize: { rpr: 1.245, yieldTRai: 0.822, residueName: 'ต้น ยอด ใบข้าวโพด' }
+};
+const GHG_CROP_ALIASES = { rice: ['ข้าว', 'ฟาง'], sugarcane: ['อ้อย'], maize: ['ข้าวโพด'], cassava: ['มันสำปะหลัง', 'เหง้า', 'มัน'], wheat: ['ข้าวสาลี'] };
 // 2.2.0: one province-wide price (ราคากลาง) used by every crop that ticks "ใช้ราคากลาง"; a crop may still
 // carry its own price. Changing the central price changes the value of every such crop at once.
 const RESIDUE_DEFAULT_PRICE = 0.8;
@@ -336,6 +351,7 @@ function residuePriceSave_(input, s) {
 }
 
 function ghgParams_() {
+  ghgBiomassMigrate_();
   const p = Object.assign({}, GHG_DEFAULT_PARAMS, { PARAM_VERSION: 1, UPDATED_AT: '', UPDATED_BY: '' });
   const sh = spreadsheet_().getSheetByName('ghg_params');
   if (sh) dataRows_(sh).forEach(function (r) {
@@ -347,10 +363,22 @@ function ghgParams_() {
   return p;
 }
 
+/** 1.8.0: reads the biomass method of one ghg_crops row; residueTRai becomes RPR × yield when the crop uses that method. */
+function ghgBiomassOf_(c, row) {
+  const n = function (v) { return v === '' || v === undefined || v === null ? '' : Number(v); };
+  const method = row && text_(row[17]) === 'rpr' ? 'rpr' : 'fixed';
+  const rpr = row ? n(row[18]) : '', yieldTRai = row ? n(row[19]) : '', dmf = row ? n(row[20]) : '';
+  const out = Object.assign({}, c, { biomassMethod: method, rpr: rpr, yieldTRai: yieldTRai, dmf: dmf === '' || isNaN(dmf) ? 1 : dmf, fixedTRai: c.residueTRai });
+  if (method === 'rpr' && rpr !== '' && yieldTRai !== '' && !isNaN(rpr) && !isNaN(yieldTRai)) out.residueTRai = round_(rpr * yieldTRai, 4);
+  return out;
+}
+
 function ghgCrops_(includeInactive) {
+  ghgBiomassMigrate_();
   const sh = spreadsheet_().getSheetByName('ghg_crops');
   const global = sh ? residuePriceGlobal_() : null;
-  const list = sh ? dataRows_(sh).map(function (r) {
+  const rawRows = sh ? dataRows_(sh) : [];
+  const list = sh ? rawRows.map(function (r) {
     // Use_Global_Price blank = follow the central price (2.2.0 default).
     const useGlobal = r[14] === '' || r[14] === undefined ? true : truthyCell_(r[14]);
     const own = r[12] === '' || r[12] === undefined ? '' : Number(r[12]);
@@ -360,7 +388,7 @@ function ghgCrops_(includeInactive) {
       useGlobalPrice: useGlobal, ownPriceBahtKg: own, ownPriceReference: text_(r[13]),
       priceBahtKg: useGlobal ? global.price : own, priceReference: useGlobal ? 'ราคากลาง: ' + global.reference : text_(r[13]),
       removablePct: r[15] === '' || r[15] === undefined ? '' : Number(r[15]), removableReference: text_(r[16]) };
-  }) : ghgDefaultCropObjects_();
+  }).map(function (c, i) { return ghgBiomassOf_(c, rawRows[i]); }) : ghgDefaultCropObjects_().map(function (c) { return ghgBiomassOf_(c, null); });
   return list.filter(function (c) { return c.key && (includeInactive || c.active); })
     .sort(function (a, b) { return a.sortOrder - b.sortOrder; });
 }
@@ -370,8 +398,12 @@ function ghgCropPublic_(c, p) {
   return { key: c.key, name: c.name, residueName: c.residueName, hasStandard: consumed !== null, consumedKgRai: consumed === null ? null : round_(consumed, 2),
     cf: c.cf === '' ? null : c.cf, residueTRai: c.residueTRai === '' ? null : c.residueTRai, reference: c.reference, residueReference: c.residueReference,
     priceBahtKg: c.priceBahtKg === '' || c.priceBahtKg === undefined ? null : Number(c.priceBahtKg), priceReference: c.priceReference || '',
-    useGlobalPrice: c.useGlobalPrice !== false, removablePct: c.removablePct === '' || c.removablePct === undefined ? null : Number(c.removablePct) };
+    useGlobalPrice: c.useGlobalPrice !== false, removablePct: c.removablePct === '' || c.removablePct === undefined ? null : Number(c.removablePct),
+    biomassMethod: c.biomassMethod || 'fixed', rpr: c.rpr === '' || c.rpr === undefined ? null : c.rpr, yieldTRai: c.yieldTRai === '' || c.yieldTRai === undefined ? null : c.yieldTRai,
+    dmf: c.dmf === undefined || c.dmf === '' ? 1 : c.dmf };
 }
+/** kg dry matter burnt per rai in the residue mode: biomass (t/rai) × 1,000 × dry share × Cf is done by ghgCalcItem_ (mb × cf). */
+function ghgResidueMbKg_(c) { return Number(c.residueTRai) * 1000 * (c.dmf === undefined || c.dmf === '' ? 1 : Number(c.dmf)); }
 
 /* ------------------------------ admin methods ------------------------------ */
 
@@ -382,12 +414,14 @@ function ghgSettingsGet_() {
     const out = { key: c.key, name: c.name, standard: null, residue: null };
     try { out.standard = round_(ghgCalcItem_({ area: 100 }, c, p).lfire, 4); } catch (err) { out.standard = null; }
     if (c.residueTRai !== '' && c.cf !== '') {
-      try { out.residue = round_(ghgCalcItem_({ area: 100, mode: 'custom', mb: Number(c.residueTRai) * 1000, cf: c.cf, reference: c.residueReference || 'residue' }, c, p).lfire, 4); } catch (err) { out.residue = null; }
+      try { out.residue = round_(ghgCalcItem_({ area: 100, mode: 'custom', mb: ghgResidueMbKg_(c), cf: c.cf, reference: c.residueReference || 'residue' }, c, p).lfire, 4); } catch (err) { out.residue = null; }
+      out.biomass100 = round_(100 * Number(c.residueTRai), 2);
     }
     return out;
   });
   return { status: 'success', params: p, label: ghgParamLabel_(p), gwpSets: GHG_GWP_SETS, defaults: GHG_DEFAULT_PARAMS, price: residuePriceGlobal_(),
-    crops: crops.map(function (c) { return Object.assign({}, c, ghgCropPublic_(c, p)); }), sample100: sample, boundary: GHG_BOUNDARY };
+    crops: crops.map(function (c) { return Object.assign({}, c, ghgCropPublic_(c, p)); }), sample100: sample, boundary: GHG_BOUNDARY,
+    history: ghgHistoryList_(12) };
 }
 
 function ghgParamsSave_(input, s) {
@@ -410,6 +444,7 @@ function ghgParamsSave_(input, s) {
     return ['PARAM_VERSION', 'UPDATED_AT', 'UPDATED_BY'].indexOf(k) < 0 && String(next[k]) !== String(cur[k]);
   });
   if (!changed.length) return { status: 'success', message: 'ไม่มีการเปลี่ยนแปลง', settings: ghgSettingsGet_() };
+  ghgSnapshot_(s, 'ghg_params_save', 'ก่อนแก้ค่าคงที่: ' + changed.join(', '));
   next.PARAM_VERSION = (Number(cur.PARAM_VERSION) || 1) + 1;
   next.UPDATED_AT = new Date();
   next.UPDATED_BY = s.name + ' (' + s.username + ')';
@@ -438,7 +473,14 @@ function ghgCropSave_(input, s) {
   };
   const consumed = num(input.consumedTHa, 'Biomass consumed (t/ha)');
   const cf = num(input.cf, 'Combustion Factor', 1);
-  const residue = num(input.residueTRai, 'วัสดุเหลือใช้ทางการเกษตร (ตัน/ไร่)');
+  const method = input.biomassMethod === 'rpr' ? 'rpr' : 'fixed';
+  const rpr = num(input.rpr, 'อัตราชีวมวลต่อผลผลิต (ตัน/ตันผลผลิต)', 20);
+  const yieldTRai = num(input.yieldTRai, 'ผลผลิตเฉลี่ย (ตัน/ไร่)', 50);
+  const dmfIn = num(input.dmf, 'สัดส่วนน้ำหนักแห้ง', 1);
+  const dmf = dmfIn === '' ? 1 : dmfIn;
+  if (dmf <= 0) throw new Error('สัดส่วนน้ำหนักแห้งต้องมากกว่า 0 และไม่เกิน 1');
+  if (method === 'rpr' && (rpr === '' || yieldTRai === '')) throw new Error('วิธีอัตรา × ผลผลิต ต้องกรอกทั้งอัตราชีวมวลต่อผลผลิตและผลผลิตเฉลี่ย');
+  const residue = method === 'rpr' ? round_(rpr * yieldTRai, 4) : num(input.residueTRai, 'วัสดุเหลือใช้ทางการเกษตร (ตัน/ไร่)');
   const reference = cleanText_(input.reference, 200);
   const residueReference = cleanText_(input.residueReference, 200);
   const sh0 = sheetByName_('ghg_crops');
@@ -458,14 +500,16 @@ function ghgCropSave_(input, s) {
   const rows = dataRows_(sh);
   const idx = rows.findIndex(function (r) { return text_(r[0]) === key; });
   const before = idx >= 0 ? rows[idx] : null;
+  if (!input.skipSnapshot) ghgSnapshot_(s, 'ghg_crop_save', 'ก่อนแก้ค่าพืช ' + name);
   const values = [key, name, consumed, cf, residue, cleanText_(input.residueName, 80), residueReference, reference,
     input.active !== false, Math.max(1, Math.min(99, Number(input.sortOrder) || 50)), new Date(), s.name + ' (' + s.username + ')', price, priceReference,
-    useGlobal, removable, removableReference];
+    useGlobal, removable, removableReference, method, rpr, yieldTRai, dmf];
   if (idx >= 0) sh.getRange(idx + 2, 1, 1, values.length).setValues([values]); else sh.appendRow(values);
   invalidateResidue_();
   adminAudit_(s, 'ghg_crop_save', key + ' ' + name + ': consumed ' + (before ? before[2] : '–') + ' → ' + consumed + ' t/ha, Cf ' + (before ? before[3] : '–') + ' → ' + cf +
     ', residue ' + (before ? before[4] : '–') + ' → ' + residue + ' t/rai, ' + (useGlobal ? 'ใช้ราคากลาง' : 'ราคาเฉพาะพืช ' + price + ' baht/kg') +
-    ', removable ' + (before ? before[15] : '–') + ' → ' + removable + '%');
+    ', removable ' + (before ? before[15] : '–') + ' → ' + removable + '%' +
+    ', biomass ' + (method === 'rpr' ? rpr + ' × ' + yieldTRai + ' = ' + residue : 'fixed ' + residue) + ' t/rai, DMF ' + dmf);
   return { status: 'success', message: 'บันทึกค่าพืช ' + name + ' แล้ว', settings: ghgSettingsGet_() };
 }
 
@@ -476,4 +520,149 @@ function ghgCalculateServer_(input) {
   const r = ghgCalculate_(Array.isArray(input.items) ? input.items.slice(0, 50) : [], ghgCrops_(true), p);
   if (r.ok) r.items.forEach(function (x) { if (input.scenario) x.dataStatus = 'Scenario'; });
   return Object.assign({ status: 'success' }, r);
+}
+
+
+/* ------------------------------ 1.8.0 history, restore, import ------------------------------ */
+
+/** Keeps the current formula values (params + crops) as one row of ghg_history before they change. */
+function ghgSnapshot_(s, action, note) {
+  const sh = ensureSheet_('ghg_history', GHG_SHEETS.ghg_history);
+  const p = ghgParams_();
+  const crops = spreadsheet_().getSheetByName('ghg_crops') ? dataRows_(sheetByName_('ghg_crops')) : [];
+  const version = Math.max(0, sh.getLastRow() - 1) + 1;
+  sh.appendRow([version, new Date(), s ? s.name + ' (' + s.username + ')' : 'ระบบ', action, cleanText_(note, 300),
+    JSON.stringify(p), JSON.stringify(crops.map(function (r) { return r.map(function (v) { return v instanceof Date ? v.toISOString() : v; }); }))]);
+  return version;
+}
+function ghgHistoryList_(limit) {
+  const sh = spreadsheet_().getSheetByName('ghg_history');
+  if (!sh) return [];
+  return dataRows_(sh).map(function (r) {
+    let pv = '';
+    try { pv = JSON.parse(r[5]).PARAM_VERSION; } catch (err) { pv = ''; }
+    return { version: Number(r[0]), time: dateTime_(r[1]), by: text_(r[2]), action: text_(r[3]), note: text_(r[4]), paramVersion: pv };
+  }).reverse().slice(0, limit || 20);
+}
+/** Mini Super Admin / Super Admin: puts back the values kept in history row `version` (the current values are kept first). */
+function ghgRestore_(input, s) {
+  const version = Number(input && input.version);
+  const sh = spreadsheet_().getSheetByName('ghg_history');
+  const row = sh ? dataRows_(sh).find(function (r) { return Number(r[0]) === version; }) : null;
+  if (!row) throw new Error('ไม่พบชุดค่าที่ ' + version + ' ในประวัติ');
+  let p, crops;
+  try { p = JSON.parse(row[5]); crops = JSON.parse(row[6]); } catch (err) { throw new Error('ข้อมูลประวัติชุดที่ ' + version + ' อ่านไม่ได้'); }
+  ghgSnapshot_(s, 'ghg_restore', 'ก่อนย้อนกลับไปชุดที่ ' + version);
+  const cur = ghgParams_();
+  const ps = sheetByName_('ghg_params'), prow = dataRows_(ps);
+  const keep = ['PARAM_VERSION', 'UPDATED_AT', 'UPDATED_BY'];
+  Object.keys(GHG_PARAM_META).forEach(function (k) {
+    if (keep.indexOf(k) >= 0 || !(k in p)) return;
+    const i = prow.findIndex(function (r) { return text_(r[0]) === k; });
+    if (i >= 0) ps.getRange(i + 2, 2).setValue(p[k]);
+  });
+  const stamp = { PARAM_VERSION: (Number(cur.PARAM_VERSION) || 1) + 1, UPDATED_AT: new Date(), UPDATED_BY: s.name + ' (' + s.username + ') ย้อนกลับชุดที่ ' + version };
+  Object.keys(stamp).forEach(function (k) { const i = prow.findIndex(function (r) { return text_(r[0]) === k; }); if (i >= 0) ps.getRange(i + 2, 2).setValue(stamp[k]); });
+  const cs = ensureSheet_('ghg_crops', GHG_SHEETS.ghg_crops);
+  const width = GHG_SHEETS.ghg_crops.length;
+  // rows beyond the restored set are blanked (a blank key is ignored everywhere), so a crop added later does not linger
+  const height = Math.max(crops.length, cs.getLastRow() - 1);
+  const grid = [];
+  for (let i = 0; i < height; i++) { const r = (crops[i] || []).slice(0, width); while (r.length < width) r.push(''); grid.push(r); }
+  if (height) cs.getRange(2, 1, height, width).setValues(grid);
+  invalidateResidue_();
+  adminAudit_(s, 'ghg_restore', 'ย้อนกลับค่าคำนวณเป็นชุดในประวัติที่ ' + version + ' (เลขชุดค่าใหม่ ' + stamp.PARAM_VERSION + ')');
+  return { status: 'success', message: 'ย้อนกลับเป็นค่าชุดที่ ' + version + ' แล้ว (เลขชุดค่าใหม่ ' + stamp.PARAM_VERSION + ')', settings: ghgSettingsGet_() };
+}
+
+/** Matches a label from a spreadsheet ("ฟางข้าว", "ยอดและใบอ้อย", "rice") to a crop key. */
+function ghgCropKeyOf_(label, crops) {
+  const t = String(label || '').trim().toLowerCase();
+  if (!t) return '';
+  const exact = crops.find(function (c) { return c.key === t || c.name.toLowerCase() === t || String(c.residueName || '').toLowerCase() === t; });
+  if (exact) return exact.key;
+  const order = ['wheat', 'maize', 'sugarcane', 'cassava', 'rice'];   // longer names first: ข้าวโพด / ข้าวสาลี before ข้าว
+  for (let i = 0; i < order.length; i++) {
+    if ((GHG_CROP_ALIASES[order[i]] || []).some(function (a) { return t.indexOf(a) >= 0; }) && crops.some(function (c) { return c.key === order[i]; })) return order[i];
+  }
+  return '';
+}
+/**
+ * Import of biomass values from a spreadsheet (parsed in the browser). rows: [{ label | key, rpr, yieldTRai, residueTRai, dmf, cf, reference, residueName }].
+ * apply=false → the comparison only; apply=true → saved as one change (history kept first). Nothing outside these columns changes.
+ */
+function ghgImport_(input, s) {
+  input = input || {};
+  const rows = Array.isArray(input.rows) ? input.rows.slice(0, 50) : [];
+  if (!rows.length) throw new Error('ไม่พบแถวข้อมูลชีวมวลในไฟล์');
+  const crops = ghgCrops_(true);
+  const ref = cleanText_(input.reference, 200);
+  const num = function (v) { if (v === '' || v === null || v === undefined) return null; const n = Number(String(v).replace(/,/g, '')); return isFinite(n) ? n : NaN; };
+  const out = rows.map(function (r) {
+    const key = r.key && crops.some(function (c) { return c.key === String(r.key).toLowerCase(); }) ? String(r.key).toLowerCase() : ghgCropKeyOf_(r.label || r.residueName, crops);
+    const c = crops.find(function (x) { return x.key === key; });
+    const rpr = num(r.rpr), y = num(r.yieldTRai), fixed = num(r.residueTRai), dmf = num(r.dmf), cf = num(r.cf);
+    const line = { label: cleanText_(r.label || r.residueName || r.key, 80), key: key, name: c ? c.name : '', error: '' };
+    if (!c) line.error = 'ไม่รู้จักชนิดพืช';
+    else if ([rpr, y, fixed, dmf, cf].some(function (v) { return v !== null && (isNaN(v) || v < 0); })) line.error = 'มีค่าที่ไม่ใช่ตัวเลขหรือติดลบ';
+    else if (rpr !== null && y !== null) { line.method = 'rpr'; line.rpr = rpr; line.yieldTRai = y; line.residueTRai = round_(rpr * y, 4); }
+    else if (fixed !== null) { line.method = 'fixed'; line.residueTRai = fixed; }
+    else line.error = 'ไม่มีค่าอัตรา × ผลผลิต หรือค่าตัน/ไร่';
+    if (!line.error && dmf !== null && (dmf <= 0 || dmf > 1)) line.error = 'สัดส่วนน้ำหนักแห้งต้องอยู่ระหว่าง 0–1';
+    if (!line.error && cf !== null && cf > 1) line.error = 'Cf ต้องอยู่ระหว่าง 0–1';
+    if (c) { line.before = c.residueTRai === '' ? null : Number(c.residueTRai); line.beforeMethod = c.biomassMethod; }
+    line.dmf = dmf === null ? (c ? c.dmf : 1) : dmf; line.cf = cf === null ? (c ? c.cf : '') : cf;
+    line.residueName = cleanText_(r.residueName, 80) || (c ? c.residueName : '');
+    line.reference = cleanText_(r.reference, 200) || ref;
+    if (!line.error && !line.reference) line.error = 'ต้องระบุแหล่งอ้างอิง';
+    return line;
+  });
+  const good = out.filter(function (x) { return !x.error; });
+  if (!input.apply) return { status: 'preview', rows: out, ready: good.length };
+  if (!good.length) throw new Error('ไม่มีแถวที่นำเข้าได้');
+  const seen = {};
+  good.forEach(function (x) { if (seen[x.key]) throw new Error('ไฟล์มี ' + x.name + ' ซ้ำ'); seen[x.key] = true; });
+  ghgSnapshot_(s, 'ghg_import', 'ก่อนนำเข้าค่าชีวมวล ' + good.map(function (x) { return x.name; }).join(', ') + (input.fileName ? ' จาก ' + cleanText_(input.fileName, 120) : ''));
+  good.forEach(function (x) {
+    const c = crops.find(function (k) { return k.key === x.key; });
+    ghgCropSave_({ key: c.key, name: c.name, consumedTHa: c.consumedTHa, cf: x.cf === '' ? '' : x.cf, residueName: x.residueName, residueTRai: x.residueTRai,
+      residueReference: x.reference, reference: c.reference, active: c.active, sortOrder: c.sortOrder, biomassMethod: x.method, rpr: x.rpr, yieldTRai: x.yieldTRai, dmf: x.dmf,
+      skipSnapshot: true }, s);
+  });
+  adminAudit_(s, 'ghg_import', 'นำเข้าค่าชีวมวล ' + good.length + ' ชนิดพืช' + (input.fileName ? ' จาก ' + cleanText_(input.fileName, 120) : ''));
+  return { status: 'success', message: 'นำเข้าค่าชีวมวล ' + good.length + ' ชนิดพืชแล้ว ค่าเดิมเก็บไว้ในประวัติ ย้อนกลับได้', settings: ghgSettingsGet_() };
+}
+
+/** One-time step after deploying 1.8.0 (the user's decision of 28 Nov 2026): the สกว. values of the province document,
+    and GHG from the same biomass (residue mode). The values before are kept in ghg_history, so it can be undone. */
+let GHG_MIGRATED_ = false;
+function ghgBiomassMigrate_() {
+  if (GHG_MIGRATED_) return;
+  GHG_MIGRATED_ = true;
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('GHG_BIOMASS_V180')) return;
+  const ss = spreadsheet_();
+  const cs = ss.getSheetByName('ghg_crops');
+  if (!cs || !ss.getSheetByName('ghg_params')) return;   // not set up yet: setupSystem writes the defaults
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return;
+  try {
+    if (props.getProperty('GHG_BIOMASS_V180')) return;
+    const sys = { username: 'system', name: 'ระบบ (ABM 1.8.0)', role: 'super' };
+    ghgSnapshot_(sys, 'ghg_biomass_v180', 'ค่าก่อนปรับเป็น สกว. (อัตรา × ผลผลิต) และคิดก๊าซเรือนกระจกจากชีวมวลเดียวกัน');
+    ensureSheet_('ghg_crops', GHG_SHEETS.ghg_crops);
+    const rows = dataRows_(cs);
+    rows.forEach(function (r, i) {
+      const key = text_(r[0]), v = GHG_BIOMASS_V180[key];
+      if (v) cs.getRange(i + 2, 5, 1, 3).setValues([[round_(v.rpr * v.yieldTRai, 4), v.residueName, GHG_BIOMASS_REF]]);
+      cs.getRange(i + 2, 18, 1, 4).setValues([[v ? 'rpr' : 'fixed', v ? v.rpr : '', v ? v.yieldTRai : '', r[20] === '' || r[20] === undefined ? 1 : r[20]]]);
+    });
+    const ps = ss.getSheetByName('ghg_params'), prow = dataRows_(ps);
+    const cur = ghgParams_();
+    const set = { DEFAULT_MODE: 'residue', PARAM_VERSION: (Number(cur.PARAM_VERSION) || 1) + 1, UPDATED_AT: new Date(), UPDATED_BY: sys.name };
+    Object.keys(set).forEach(function (k) { const i = prow.findIndex(function (r) { return text_(r[0]) === k; }); if (i >= 0) ps.getRange(i + 2, 2).setValue(set[k]); });
+    props.setProperty('GHG_BIOMASS_V180', new Date().toISOString());
+    try { invalidateResidue_(); } catch (err) { /* best effort */ }
+    try { adminAudit_(sys, 'ghg_biomass_v180', 'ชีวมวล สกว.: ข้าว 1.522×0.613, อ้อย 0.153×9.746, ข้าวโพด 1.245×0.822; ก๊าซเรือนกระจกคิดจากชีวมวลเดียวกัน (โหมด residue) ชุดค่า ' + set.PARAM_VERSION); } catch (err) { /* best effort */ }
+  } finally { lock.releaseLock(); }
 }

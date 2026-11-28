@@ -215,7 +215,7 @@ function residueCompute_(rec, ctx) {
   if (rec.biomassMode === 'custom') {
     item = { area: rec.area, mode: 'custom', mb: rec.mb, cf: rec.cf, fresh: rec.fresh, dmf: rec.dmf, reference: rec.reference, dataStatus: 'Measured' };
   } else if (ctx.p.DEFAULT_MODE === 'residue' && crop.residueTRai !== '' && crop.cf !== '') {
-    item = { area: rec.area, mode: 'custom', mb: Number(crop.residueTRai) * 1000, cf: crop.cf, reference: crop.residueReference, dataStatus: 'Estimated' };
+    item = { area: rec.area, mode: 'custom', mb: ghgResidueMbKg_(crop), cf: crop.cf, reference: crop.residueReference, dataStatus: 'Estimated' };
   } else {
     item = { area: rec.area, mode: 'standard', dataStatus: 'Estimated' };
   }
@@ -973,13 +973,15 @@ function residueReportSection_(key, R, s) {
       { item: 'GWP_N2O (' + p.GWP_SET + ')', value: p.GWP_N2O, unit: 'กก.คาร์บอนไดออกไซด์เทียบเท่า/กก.ก๊าซ', ref: p.REF_GWP },
       { item: 'EF_CO2e = EF_CH4×GWP_CH4 + EF_N2O×GWP_N2O', value: round_(ghgCombinedEf_(p), 4), unit: GHG_UNIT_G + '/กก.ชีวมวลแห้งที่เผาไหม้', ref: 'คำนวณ' },
       { item: 'Hectare to Rai', value: p.HA_TO_RAI, unit: 'ไร่/เฮกตาร์', ref: '' },
-      { item: 'โหมดคำนวณเริ่มต้น', value: '', unit: p.DEFAULT_MODE === 'standard' ? 'Standard: Bburned = Biomass consumed (Table 2.4)' : 'Residue: Bburned = วัสดุเหลือใช้ทางการเกษตรต่อไร่ × Cf', ref: 'ชุดค่าที่ ' + R.ctx.label.version + ' แก้ไข ' + (p.UPDATED_AT || '–') }
+      { item: 'โหมดคำนวณเริ่มต้น', value: '', unit: p.DEFAULT_MODE === 'standard' ? 'Standard: Bburned = Biomass consumed (Table 2.4)' : 'Residue: Bburned = ชีวมวลต่อไร่ × สัดส่วนน้ำหนักแห้ง × Cf', ref: 'ชุดค่าที่ ' + R.ctx.label.version + ' แก้ไข ' + (p.UPDATED_AT || '–') }
     ];
     crops.forEach(function (c) {
       const pub = ghgCropPublic_(c, p);
       rows.push({ item: c.name + ': Biomass consumed', value: pub.consumedKgRai === null ? '' : pub.consumedKgRai, unit: pub.consumedKgRai === null ? 'ไม่มีค่าเริ่มต้น' : 'kg/ไร่ (' + c.consumedTHa + ' t/ha)', ref: c.reference });
       rows.push({ item: c.name + ': Combustion Factor', value: c.cf === '' ? '' : c.cf, unit: 'ratio', ref: c.reference });
-      rows.push({ item: c.name + ': วัสดุเหลือใช้ทางการเกษตรต่อไร่ (' + (c.residueName || '') + ')', value: c.residueTRai === '' ? '' : c.residueTRai, unit: 'ตัน/ไร่', ref: c.residueReference });
+      rows.push({ item: c.name + ': ชีวมวลต่อไร่ (' + (c.residueName || '') + ')', value: c.residueTRai === '' ? '' : c.residueTRai,
+        unit: 'ตัน/ไร่' + (c.biomassMethod === 'rpr' && c.rpr !== '' ? ' = อัตราชีวมวลต่อผลผลิต ' + c.rpr + ' × ผลผลิตเฉลี่ย ' + c.yieldTRai + ' ตัน/ไร่' : ''), ref: c.residueReference });
+      if (c.dmf !== undefined && Number(c.dmf) !== 1) rows.push({ item: c.name + ': สัดส่วนน้ำหนักแห้ง', value: c.dmf, unit: 'ratio', ref: c.residueReference });
       rows.push({ item: c.name + ': ราคาวัสดุเหลือใช้ทางการเกษตร' + (c.useGlobalPrice ? ' (ราคากลาง)' : ' (ราคาเฉพาะพืช)'), value: c.priceBahtKg === '' ? '' : c.priceBahtKg, unit: 'บาท/กก.', ref: c.priceReference });
       rows.push({ item: c.name + ': สัดส่วนที่นำออกจากแปลงได้', value: c.removablePct === '' ? '' : c.removablePct, unit: '%', ref: c.removableReference });
     });

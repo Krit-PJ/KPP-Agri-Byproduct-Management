@@ -67,6 +67,9 @@ const ADMIN_METHODS = {
   ghgSettingsServer: { role: 'mini', fn: function () { return ghgSettingsGet_(); } },
   ghgParamsSaveServer: { role: 'mini', fn: function (a, s) { return ghgParamsSave_(a[0], s); } },
   ghgCropSaveServer: { role: 'mini', fn: function (a, s) { return ghgCropSave_(a[0], s); } },
+  // 1.8.0 formula values: import from a spreadsheet (preview, then apply) and restore an earlier set
+  ghgImportServer: { role: 'mini', fn: function (a, s) { return ghgImport_(a[0], s); } },
+  ghgRestoreServer: { role: 'mini', fn: function (a, s) { return ghgRestore_(a[0], s); } },
   residuePriceSaveServer: { role: 'mini', fn: function (a, s) { return residuePriceSave_(a[0], s); } },
   ghgCalculateServer: { role: 'mini', fn: function (a) { return ghgCalculateServer_(a[0]); } },
   residueSettingsServer: { role: 'mini', fn: function (a) { return residueSettingsGet_(a[0]); } },
