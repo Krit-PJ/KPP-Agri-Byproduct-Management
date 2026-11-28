@@ -1366,7 +1366,7 @@
     $('viewLogin').classList.add('is-resuming');
     window.ABM_STAFF.resume()
       .then((r) => { if (r && r.token) { state.token = r.token; return enterApp(r); } })
-      .catch((err) => { $('staffLoginError').textContent = /DEVICE_EXPIRED/.test(err.message) ? 'การจดจำเครื่องหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง' : err.message.replace(/^DEVICE_EXPIRED:\s*/, ''); })
+      .catch((err) => { const m = String(err.message || ''); $('staffLoginError').textContent = /[ก-๙]/.test(m) && !/DEVICE_EXPIRED/.test(m) ? m : 'การจดจำเครื่องหมดอายุหรือใช้ไม่ได้ กรุณาเข้าสู่ระบบอีกครั้ง'; })
       .finally(() => $('viewLogin').classList.remove('is-resuming'));
   } else if (!state.token && window.ABM_STAFF.ssoAuto) {
     // 2.4.0: already signed in on Agri-Risk Map / Smart Agri / GGH on this device → open the officer pages directly
