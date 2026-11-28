@@ -111,7 +111,7 @@ bad(post('ssoStaffLoginServer', [{ ticket: issue('0833333333', 'ABM') }]), /ป�
 check(post('staffLoginServer', [{ phone: '0833333333' }]).ok, 'off: old sign-in works');
 check(post('ssoProvisionServer', [{ phone: '0833333333' }]).result.status === 'off', 'off: nothing sent to Agri-Risk');
 const h = JSON.parse((api.doGet({ parameter: { api: 'v1', endpoint: 'health' } }), env.out().body));
-check(h.feature === 'ABM_SPLIT' && h.system === 'ABM' && h.apiVersion === '1.8.0', 'health shows ABM 1.4.0');
+check(h.feature === 'ABM_SPLIT' && h.system === 'ABM' && h.apiVersion === '1.8.1', 'health shows ABM 1.4.0');
 bad(post('ssoLoginServer', [{ ticket: issue('0833333333', 'ABM') }]), /Method not allowed/, 'no farmer/buyer SSO method in ABM');
 
 /* 7. 1.2.0: SSO required by default · farmers/buyers use Green Gain Hub only · officer registration proves the phone and waits for approval */

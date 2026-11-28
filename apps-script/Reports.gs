@@ -385,11 +385,12 @@ const REPORT_BUILDERS = {
     const rows = gghRows_('buyers', pv).filter(function (r) { return String(r[11] || '').trim().toLowerCase() === 'active'; }).map(function (r) {
       const d = text_(r[20]) ? { name: text_(r[20]) } : (districts.length && hasCoordinates_(r[5], r[6]) ? districtForPoint_(Number(r[5]), Number(r[6]), districts) : null);
       return { district: d ? d.name : 'ไม่ระบุ', name: (text_(r[2]) + ' ' + text_(r[3])).trim(), phone: ctx.unmask ? fullPhone_(r[4]) : maskPhone_(r[4]),
-        material: resolvedMaterial_(r[13], r[14], r[7]), quality: text_(r[8]), price: maybeNumber_(r[9]), capacity: text_(r[10]), lat: maybeNumber_(r[5]), lng: maybeNumber_(r[6]) };
+        material: gghBuyerOffers_(r).map(function (o) { return o.material; }).join(', '), quality: text_(r[8]),
+        price: gghBuyerOffers_(r).map(gghOfferText_).join(' · '), capacity: text_(r[10]), lat: maybeNumber_(r[5]), lng: maybeNumber_(r[6]) };   // 1.8.1: every material + unit
     }).sort(function (a, b) { return a.district.localeCompare(b.district, 'th'); });
     return {
       columns: [col_('district', 'อำเภอ'), col_('name', 'ชื่อจุดรับซื้อ'), col_('phone', 'โทรศัพท์'), col_('material', 'รับซื้อ'), col_('quality', 'คุณภาพ'),
-        col_('price', 'ราคา (บาท/ไร่)', 'number'), col_('capacity', 'ปริมาณ (ตัน/วัน)'), col_('lat', 'ละติจูด', 'number', true), col_('lng', 'ลองจิจูด', 'number', true)],
+        col_('price', 'ราคารับซื้อ (ตามหน่วยที่ผู้รับซื้อระบุ)'), col_('capacity', 'ปริมาณ (ตัน/วัน)'), col_('lat', 'ละติจูด', 'number', true), col_('lng', 'ลองจิจูด', 'number', true)],
       rows: rows, subtitle: 'จังหวัด' + gghProvinceName_(pv),
       notes: ['ข้อมูลส่วนบุคคล ใช้ตามวัตถุประสงค์ที่ผู้รับซื้อให้ความยินยอมเท่านั้น' + (ctx.unmask ? '' : ' (ปิดบังเบอร์โทร)')]
     };

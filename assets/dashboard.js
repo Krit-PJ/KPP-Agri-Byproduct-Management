@@ -10,6 +10,14 @@
  */
 (function () {
   'use strict';
+  // 1.8.1 (GGH 4.3.0): prices as buyers set them — บาท/ไร่ · บาท/ตัน · บาท/ก้อน
+  function unitPriceText(pu) {
+    if (!pu) return '';
+    const T = { rai: 'บาท/ไร่', ton: 'บาท/ตัน', bale: 'บาท/ก้อน' };
+    const n = (v) => Number(v).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+    const xs = ['rai', 'ton', 'bale'].filter((k) => pu[k]).map((k) => (pu[k].min === pu[k].max ? n(pu[k].min) : n(pu[k].min) + '–' + n(pu[k].max)) + ' ' + T[k]);
+    return xs.length ? '<br>ราคาที่ระบุ ' + xs.join(' · ') : '';
+  }
 
   const cfg = window.ABM_CONFIG || {};
   const API_BASE = cfg.SUMMARY_API_URL || cfg.SHEETS_API_URL || '';
@@ -801,7 +809,7 @@
       : '<p class="ggh-district-empty">ยังไม่มีข้อมูล</p>';
     el.querySelectorAll('.ggh-bar-row').forEach((row) => {
       const m = list.find((x) => x.material === row.dataset.m);
-      bindTip(row, `<strong>${esc(m.material)}</strong><br>${fmt(m.plots)} แปลง, ${fmt(m.areaRai, 1)} ไร่<br>รับซื้อได้ ${fmt(m.capacityTonPerDay, 1)} ตัน/วัน` + (m.avgBuyerPriceBahtPerRai !== null ? `<br>ราคาเฉลี่ย ${fmt(m.avgBuyerPriceBahtPerRai)} บาท/ไร่` : ''));
+      bindTip(row, `<strong>${esc(m.material)}</strong><br>${fmt(m.plots)} แปลง, ${fmt(m.areaRai, 1)} ไร่<br>รับซื้อได้ ${fmt(m.capacityTonPerDay, 1)} ตัน/วัน` + (m.avgBuyerPriceBahtPerRai !== null ? `<br>ราคาเฉลี่ย ${fmt(m.avgBuyerPriceBahtPerRai)} บาท/ไร่` : '') + unitPriceText(m.priceByUnit));
     });
     $('dashResidueNote').textContent = (s.notes && s.notes.residue) || '';
   }
