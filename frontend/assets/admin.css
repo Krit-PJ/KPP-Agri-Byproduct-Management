@@ -475,3 +475,5 @@ body.adm { background: radial-gradient(110% 80% at 0% 0%, #e2f0e5 0%, rgba(226,2
 .adm-ghg-const > summary { cursor: pointer; padding: .2rem 0; }
 .adm-ghg-const[open] { display: grid; gap: .8rem; }
 .adm-ghg-history .adm-table td:last-child { white-space: nowrap; }
+/* grid children may shrink, so a wide table scrolls inside its own box instead of widening the page */
+.adm-view > *, .adm-ghg-const > * { min-width: 0; }
