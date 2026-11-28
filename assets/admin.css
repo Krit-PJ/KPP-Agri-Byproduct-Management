@@ -394,7 +394,7 @@ details.adm-recstep[open] { padding-bottom: 1.1rem; }
    Soft green wash behind, the menu as pills on one light glass bar, each view a glass panel that blurs in when chosen,
    figures count up and bars grow. Text stays at full ink; one backdrop-filter per screen. */
 body.adm { background: radial-gradient(110% 80% at 0% 0%, #e2f0e5 0%, rgba(226,240,229,0) 55%),
-  radial-gradient(90% 70% at 100% 100%, #e8f2da 0%, rgba(232,242,218,0) 60%), #f2f6f2; background-attachment: fixed; }
+  radial-gradient(90% 70% at 100% 100%, #e8f2da 0%, rgba(232,242,218,0) 60%), #f2f6f2; }
 .adm-nav { background: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.9); border-radius: 16px; padding: .35rem; gap: .3rem;
   box-shadow: 0 0 0 1px rgba(26,93,48,.08), 0 8px 24px -16px rgba(15,77,36,.3); }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
