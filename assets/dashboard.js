@@ -276,7 +276,7 @@
         const noValue = R.methods.filter((x) => x.countValue === false).map((x) => x.method);
         const info = (t) => `<button type="button" class="ggh-info" aria-label="${esc(t)}" data-tip="${esc(t)}">ⓘ</button>`;
         html += '<div class="ggh-cards-row">';
-        html += card({ label: `ลดก๊าซเรือนกระจกลงได้ <span class="ggh-badge">ประมาณการ</span>${info(`จากพื้นที่ที่ไม่เผา ${fmt(sx.a, 2)} ไร่ ตามแนวทาง ${R.params.label} ดูวิธีคำนวณท้ายหน้า`)}`, value: fmtG(sx.g), unit: 'ตันคาร์บอนไดออกไซด์เทียบเท่า', cls: 'is-lead' });
+        html += card({ label: `ลดก๊าซเรือนกระจกลงได้ <span class="ggh-badge">ประมาณการ</span>${info(`จากพื้นที่ที่ไม่เผา ${fmt(sx.a, 2)} ไร่ ตามแนวทาง ${R.params.label} ดูวิธีคำนวณท้ายหน้า`)}`, value: fmtG(sx.g), unit: '<span class="u-long">ตันคาร์บอนไดออกไซด์เทียบเท่า</span><abbr class="u-short" title="ตันคาร์บอนไดออกไซด์เทียบเท่า">tCO₂e</abbr>', cls: 'is-lead' });
         html += card({ label: `ปริมาณชีวมวลที่จัดการได้${info('ประมาณการจากพื้นที่ที่จัดการ × อัตราชีวมวลต่อไร่ของแต่ละพืช')}`, value: fmt(sx.t, 1), unit: 'ตัน' });
         html += card({ label: `คิดเป็นมูลค่า <span class="ggh-badge">ประมาณการ</span>${info(`คิดที่${priceNote().replace('ราคาอ้างอิง ', 'ราคากลาง ')}${noValue.length ? ` ไม่รวม${noValue.join(', ')}` : ''} ไม่ใช่รายได้จากการขายจริง`)}`, value: baht(sx.v), unit: 'บาท' });
         html += '</div>';
