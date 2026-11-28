@@ -268,8 +268,10 @@
         html = `<p class="ggh-kpi-empty">${state.residue && state.residue.error ? 'โหลดข้อมูลการจัดการวัสดุเหลือใช้ทางการเกษตรไม่สำเร็จ' : 'กำลังโหลดข้อมูลการจัดการวัสดุเหลือใช้ทางการเกษตร…'}</p>`;
       } else {
         const code = resScopeCode();
-        meta = `${code ? 'อำเภอ' + esc(districtName(code)) : 'ทุกอำเภอ'} ปีงบประมาณ ${esc(R.fy)}${state.resCrop === 'all' ? '' : ' · ' + esc(resCropName(state.resCrop))}${state.resMethod ? ' · ' + esc(state.resMethod) : ''}` +
-          (state.resCrop !== 'all' || state.resMethod ? ' <button type="button" class="ggh-clear" data-clear-filter>ล้างตัวกรอง</button>' : '');
+        // 1.6.0: the year and district are already in the selects above; the line shows only what narrows the page further.
+        const narrowed = state.resCrop !== 'all' || state.resMethod;
+        meta = narrowed ? `กำลังกรอง: ${[state.resCrop === 'all' ? '' : esc(resCropName(state.resCrop)), state.resMethod ? esc(state.resMethod) : ''].filter(Boolean).join(' · ')}` +
+          ' <button type="button" class="ggh-clear" data-clear-filter>ล้างตัวกรอง</button>' : '';
         const sx = resSum(resCells({ d: code }));
         const noValue = R.methods.filter((x) => x.countValue === false).map((x) => x.method);
         const info = (t) => `<button type="button" class="ggh-info" aria-label="${esc(t)}" data-tip="${esc(t)}">ⓘ</button>`;
@@ -294,7 +296,7 @@
       }
     } else if (state.tab === 'market' && s) {
       const tt = s.totals;
-      meta = 'ตลาด Green Gain Hub ทุกอำเภอ';
+      meta = '';
       html += '<div class="ggh-cards-row is-5">';
       const lr = s.listing;   // 1.1.0: the plots buyers see (Green Gain Hub shows a plot until N days after harvest)
       html += card({ label: 'แปลงพร้อมขาย', value: fmt(tt.farmerPlots), unit: 'แปลง',
@@ -416,23 +418,19 @@
     if (!R) { el.innerHTML = '<p class="ggh-district-empty">กำลังโหลด…</p>'; return; }
     const code = resScopeCode();
     if (state.resMethod && !R.methods.some((m) => m.method === state.resMethod)) state.resMethod = '';
-    $('resMethodsSub').textContent = `${code ? 'อำเภอ' + districtName(code) : 'ทุกอำเภอ'} · ${state.resCrop === 'all' ? 'ทุกชนิดพืช' : resCropName(state.resCrop)} · ปีงบประมาณ ${R.fy}`;
     const methods = R.methods.filter((m) => m.active || R.cells.some((c) => c.m === m.method)).map((m) => m.method);
     const rows = methods.map((m) => ({ m, s: resSum(resCells({ d: code, m })) }));
-    const max = Math.max(0, ...rows.map((r) => r.s.a));
-    // 1.5.0: the first card is the total against the target (all types, all crops); each type card is a filter for the whole page.
+    // 1.6.0: progress against the target sits in the head of the types row; each type is a pill that filters the whole page.
     const allDone = resSum(resCells({ d: code, crop: 'all', m: '' })).a, tg = resTarget(code), p = tg ? allDone / tg * 100 : null;
-    const totalCard = `<button type="button" class="ggh-method is-total" role="radio" aria-checked="${!state.resMethod}" data-method="">
-        <span class="ggh-method-name">รวมทุกประเภท (ไร่)</span>
-        <span class="ggh-method-num">${fmt(allDone, allDone < 100 ? 2 : 0)}${tg ? `<small> / ${fmt(tg)}</small>` : ''}</span>
-        <span class="ggh-bar-track" aria-hidden="true"><span class="ggh-bar-fill" style="width:${p === null ? 0 : Math.max(allDone ? 1 : 0, Math.min(100, p)).toFixed(2)}%"></span></span>
-        <span class="ggh-method-meta">${tg ? `${pctText(p)} ของเป้าหมาย (ทุกพืช)` : 'ยังไม่กำหนดเป้าหมาย'}</span>
-      </button>`;
-    el.innerHTML = totalCard + rows.map((r) => `<button type="button" class="ggh-method ${r.s.a ? '' : 'is-zero'}" role="radio" aria-checked="${state.resMethod === r.m}" data-method="${esc(r.m)}">
-        <span class="ggh-method-name">${esc(r.m)} (ไร่)</span>
-        <span class="ggh-method-num">${fmt(r.s.a, r.s.a < 100 ? 2 : 0)}</span>
-        <span class="ggh-bar-track" aria-hidden="true"><span class="ggh-bar-fill" style="width:${max ? (r.s.a / max * 100).toFixed(1) : 0}%"></span></span>
-      </button>`).join('');
+    const num = (v) => fmt(v, v && v < 100 ? 2 : 0);
+    $('resMethodsSub').innerHTML = tg
+      ? `<span class="ggh-c1-progress-num"><b data-count>${num(allDone)}</b> / ${fmt(tg)} ไร่</span>
+         <span class="ggh-bar-track" aria-hidden="true"><span class="ggh-bar-fill" style="width:${Math.max(allDone ? 1 : 0, Math.min(100, p)).toFixed(2)}%"></span></span>
+         <span class="ggh-c1-progress-pct">${pctText(p)} ของเป้าหมาย</span>`
+      : `<span class="ggh-c1-progress-num"><b data-count>${num(allDone)}</b> ไร่ · ยังไม่กำหนดเป้าหมาย</span>`;
+    const pill = (m, label, v, on, zero) => `<button type="button" class="ggh-pill${zero ? ' is-zero' : ''}" role="radio" aria-checked="${on}" data-method="${esc(m)}">
+        <span class="ggh-pill-name">${esc(label)}</span><b class="ggh-pill-num" data-count>${num(v)}</b></button>`;
+    el.innerHTML = pill('', 'ทุกประเภท', allDone, !state.resMethod, false) + rows.map((r) => pill(r.m, r.m, r.s.a, state.resMethod === r.m, !r.s.a)).join('');
     el.setAttribute('role', 'radiogroup'); el.setAttribute('aria-label', 'เลือกประเภทการจัดการเพื่อกรองข้อมูลทั้งหน้า');
     const btns = [...el.querySelectorAll('[data-method]')];
     btns.forEach((b, i) => {
@@ -562,7 +560,7 @@
     renderDistrictPanel();
     document.querySelectorAll('#dashTable tr').forEach((tr) => tr.classList.toggle('is-selected', tr.dataset.code === state.selected));
     renderDistrictSelect();
-    if (state.tab === 'overview') { renderKpis(); renderResToolbar(); renderResMethods(); renderBalance(); renderSmartAgri(); }
+    if (state.tab === 'overview') { renderKpis(); renderResToolbar(); renderResMethods(); renderBalance(); renderSmartAgri(); countUp($('dashKpis'), state.tab); countUp($('resMethodsSub'), 'prog'); countUp($('resMethods'), 'pill'); }
     if (!state.selected) fitProvince();
     if (zoom && state.selected && state.layers[code] && state.map) state.map.fitBounds(state.layers[code].getBounds(), { padding: [30, 30], maxZoom: 11 });
   }
@@ -839,7 +837,7 @@
     });
     // the first tab keeps a clean URL
     try { history.replaceState(null, '', tab === 'overview' ? location.pathname + location.search : '#' + tab); } catch (e) { /* ignore */ }
-    renderAll();
+    renderAll(); blurIn();
     if (state.map) setTimeout(() => state.map.invalidateSize(), 30);
   }
   function bindTabs() {
@@ -921,6 +919,36 @@
       </dl>
       <p class="ggh-footnote">"ยังไม่มีบันทึก" ไม่ได้แปลว่าถูกเผา เป็นพื้นที่ที่ควรติดตาม${t.removableTon ? ` · ส่วนที่นำออกจากแปลงได้โดยไม่กระทบดินประมาณ ${fmt(t.removableTon, 0)} ตัน ส่วนที่เหลือควรไถกลบหรือคลุมดิน` : ''}</p>`;
   }
+  /* ---------------- 1.6.0 motion (the clip): numbers count to their new value, views blur in on a tab change ----------------
+     Only on a user's action, at most ~0.5 s, and never when the device asks for reduced motion. */
+  const REDUCED = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  const lastCount = {};
+  function countUp(root, key) {
+    if (!root) return;
+    root.querySelectorAll('.ggh-card-value, [data-count]').forEach((el, i) => {
+      const node = [...el.childNodes].find((n) => n.nodeType === 3 && /\d/.test(n.nodeValue));
+      if (!node) return;
+      const text = node.nodeValue.trim(), m = text.match(/^([^\d-]*)(-?[\d,]*\.?\d+)(.*)$/);
+      if (!m) return;
+      const to = Number(m[2].replace(/,/g, '')), dec = (m[2].split('.')[1] || '').length, id = key + ':' + i;
+      const from = lastCount[id] === undefined ? 0 : lastCount[id];
+      lastCount[id] = to;
+      if (REDUCED.matches || from === to || !isFinite(to)) return;
+      const t0 = performance.now(), dur = 520;
+      const show = (v) => { node.nodeValue = m[1] + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + m[3]; };
+      let done = false;
+      const finish = () => { done = true; node.nodeValue = text; };
+      const step = (now) => { if (done) return; const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3); show(from + (to - from) * e); if (k < 1) requestAnimationFrame(step); else finish(); };
+      show(from); requestAnimationFrame(step);
+      setTimeout(() => { if (!done) finish(); }, dur + 80);   // a hidden tab pauses animation frames: always land on the real value
+    });
+  }
+  function blurIn() {
+    if (REDUCED.matches) return;
+    const page = $('dashPage'); if (!page) return;
+    const targets = [page.querySelector('.ggh-topcard-body'), ...[...page.children].filter((x) => !x.classList.contains('ggh-topcard') && x.offsetParent !== null)].filter(Boolean).slice(0, 6);
+    targets.forEach((x, i) => { x.classList.remove('ggh-in'); void x.offsetWidth; x.style.animationDelay = (i * 45) + 'ms'; x.classList.add('ggh-in'); });
+  }
   function renderAll() {
     renderBalance();
     renderCropToolbar();
@@ -935,6 +963,7 @@
     if (state.tab === 'market') { renderHarvest(); renderMaterials(); renderGoals(); }
     syncProvince();
     renderTable();
+    countUp($('dashKpis'), state.tab); countUp($('resMethodsSub'), 'prog'); countUp($('resMethods'), 'pill');
   }
 
   function setStatus(text, isError, retry) {
