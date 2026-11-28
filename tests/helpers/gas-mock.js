@@ -85,7 +85,8 @@ function load(options) {
   global.Utilities = {
     DigestAlgorithm: { SHA_256: 'sha256', MD5: 'md5' }, Charset: { UTF_8: 'utf8' },
     computeDigest: (a, s) => signed(crypto.createHash(a).update(String(s), 'utf8').digest()),
-    base64EncodeWebSafe: (b) => Buffer.from(b.map((x) => x & 255)).toString('base64url'),
+    base64EncodeWebSafe: (b) => (typeof b === 'string' ? Buffer.from(b, 'utf8') : Buffer.from(b.map((x) => x & 255))).toString('base64url'),
+    computeHmacSha256Signature: (v, k) => signed(crypto.createHmac('sha256', String(k)).update(String(v), 'utf8').digest()),
     getUuid: () => crypto.randomUUID(),
     base64Decode: (s) => [...Buffer.from(s, 'base64')].map((x) => (x > 127 ? x - 256 : x)),
     base64Encode: (b) => Buffer.from(b.map((x) => x & 255)).toString('base64'),

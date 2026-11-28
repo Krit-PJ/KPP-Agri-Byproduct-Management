@@ -25,14 +25,14 @@
   // 2.2.0 menus by task: Admin 4 items; Mini Super Admin / Super Admin 5 groups with sub-tabs.
   const UNIT = 'ตันคาร์บอนไดออกไซด์เทียบเท่า';
   const VIEW_LABEL = { overview: 'ภาพรวม', record: 'บันทึกวัสดุเหลือใช้ทางการเกษตร', records: 'สรุปผลการส่งเสริม', import: 'นำเข้าข้อมูลเพาะปลูก', history: 'ข้อมูลเพาะปลูกที่นำเข้าแล้ว',
-    reports: 'ออกรายงาน', admins: 'เจ้าหน้าที่และผู้ดูแล', log: 'ประวัติการใช้งาน', targets: 'เป้าหมายและวิธีจัดการ', ghg: 'ราคาและค่าคำนวณ',
+    reports: 'พิมพ์รายงาน', admins: 'เจ้าหน้าที่และผู้ดูแล', log: 'ประวัติการใช้งาน', targets: 'เป้าหมายและวิธีจัดการ', ghg: 'ราคาและค่าคำนวณ',
     crops: 'ชนิดพืชในทะเบียน', market: 'ตลาด Green Gain Hub', api: 'เชื่อมต่อระบบอื่น', account: 'บัญชีของฉัน' };
   const MENU = {
     admin: [{ key: 'record', views: ['record'] }, { key: 'records', views: ['records'] }, { key: 'reports', views: ['reports'] }, { key: 'account', views: ['account'] }],
     mini: [
       { key: 'overview', label: 'ภาพรวม', views: ['overview'] },
       { key: 'data', label: 'ข้อมูลการจัดการ', views: ['records', 'record', 'import', 'history'] },
-      { key: 'reports', label: 'ออกรายงาน', views: ['reports'] },
+      { key: 'reports', label: 'พิมพ์รายงาน', views: ['reports'] },
       { key: 'users', label: 'ผู้ใช้งาน', views: ['admins', 'log'] },
       { key: 'settings', label: 'ตั้งค่า', views: ['targets', 'ghg', 'crops', 'market', 'api'] }
     ]
@@ -123,7 +123,7 @@
     if (!/^0\d{9}$/.test(phone)) { $('staffLoginError').textContent = 'กรุณากรอกหมายเลขโทรศัพท์ 10 หลัก'; return; }
     busy($('staffLoginBtn'), 'กำลังตรวจสอบ…', async () => {
       try {
-        const r = await window.ABM_STAFF.login(phone);
+        const r = await window.ABM_STAFF.login(phone, { remember: !!($('staffRemember') && $('staffRemember').checked) });
         state.token = r.token; $('staffLoginError').textContent = '';
         await enterApp(r);
         showSsoPrev(popSsoPrev());
@@ -168,7 +168,8 @@
     });
   });
   // 2.4.0: signing out here also signs out of Agri-Risk Map / Smart Agri on this device (shared identity)
-  $('admLogout').addEventListener('click', async () => { try { await call('adminLogoutServer'); } catch (e) { /* ignore */ } if (window.ABM_SSO) window.ABM_SSO.logout(); signOut(); });
+  // 1.7.0: signing out on this device also forgets it (the remembered key is removed)
+  $('admLogout').addEventListener('click', async () => { try { await call('adminLogoutServer'); } catch (e) { /* ignore */ } if (window.ABM_SSO) window.ABM_SSO.logout(); window.ABM_STAFF.forgetDevice(); signOut(); });
   function popSsoPrev() { try { const v = sessionStorage.getItem('abm_sso_prev'); sessionStorage.removeItem('abm_sso_prev'); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
   /** "Previous sign-in" notice with a "not me" button, at the top of the officer pages. */
   function showSsoPrev(prev) {
@@ -194,9 +195,28 @@
     sub.innerHTML = tabs.map((v) => `<button type="button" data-view="${esc(v)}" ${v === view ? 'aria-current="page"' : ''}>${esc(VIEW_LABEL[v])}</button>`).join('');
     sub.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
     document.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== view));
+    blurIn(document.querySelector(`[data-panel="${view}"]`));
     if (loaders[view]) loaders[view]().catch((err) => toast(err.message));
   }
   $('admAccountBtn').addEventListener('click', () => show('account'));
+
+  /* 1.7.0 motion like the clip (same as the homepage): a view blurs in when chosen, figures count up to their value.
+     Only on the officer's action, ~0.5 s, never with "reduce motion". */
+  const REDUCED = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  function blurIn(el) { if (!el || REDUCED.matches) return; el.classList.remove('ggh-in'); void el.offsetWidth; el.classList.add('ggh-in'); }
+  function countUp(root) {
+    if (!root || REDUCED.matches) return;
+    root.querySelectorAll('.adm-sumtile b, [data-count]').forEach((el) => {
+      const node = [...el.childNodes].find((n) => n.nodeType === 3 && /\d/.test(n.nodeValue)); if (!node) return;
+      const text = node.nodeValue.trim(), m = text.match(/^([^\d-]*)(-?[\d,]*\.?\d+)(.*)$/); if (!m) return;
+      const to = Number(m[2].replace(/,/g, '')), dec = (m[2].split('.')[1] || '').length; if (!isFinite(to) || !to) return;
+      const t0 = performance.now(), dur = 520; let done = false;
+      const show = (v) => { node.nodeValue = m[1] + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + m[3]; };
+      const finish = () => { done = true; node.nodeValue = text; };
+      const step = (now) => { if (done) return; const k = Math.min(1, (now - t0) / dur); show(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); else finish(); };
+      show(0); requestAnimationFrame(step); setTimeout(() => { if (!done) finish(); }, dur + 80);
+    });
+  }
 
   /* ---------------- import wizard ---------------- */
   async function loadCropTypes() {
@@ -514,7 +534,16 @@
       ${me.officeLabel ? `<dt>หน่วยงาน</dt><dd>${esc(me.officeLabel)}</dd>` : ''}<dt>การเข้าสู่ระบบ</dt><dd>${phoneOnly ? 'หมายเลขโทรศัพท์ที่ลงทะเบียน' : 'ชื่อผู้ใช้และรหัสผ่าน'}</dd></dl>
       ${phoneOnly ? '<p class="adm-muted">ถ้าเปลี่ยนหมายเลขโทรศัพท์หรือย้ายหน่วยงาน กรุณาแจ้งผู้ดูแลระบบของจังหวัด</p>' : ''}`;
     $('pwForm').classList.toggle('hidden', phoneOnly);
+    const officer = me.role === 'admin';
+    $('accDevices').classList.toggle('hidden', !officer);
+    if (officer) $('accDeviceText').textContent = window.ABM_STAFF.hasDevice()
+      ? 'เครื่องนี้จดจำไว้ 30 วัน เปิดหน้าเจ้าหน้าที่ได้โดยไม่ต้องกรอกเบอร์ ถ้าทำเครื่องหาย หรือเคยติ๊กจดจำไว้บนเครื่องที่ใช้ร่วมกัน ให้กดปุ่มด้านล่าง'
+      : 'เครื่องนี้ไม่ได้จดจำไว้ ถ้าเคยติ๊ก "จดจำเครื่องนี้" บนเครื่องอื่น กดปุ่มด้านล่างเพื่อให้เครื่องเหล่านั้นต้องเข้าสู่ระบบใหม่';
   }
+  $('accForgetAll').addEventListener('click', async () => {
+    try { const r = await call('deviceForgetAllServer'); window.ABM_STAFF.forgetDevice(); setResult('accDeviceResult', r.message, true); loadAccount(); }
+    catch (err) { setResult('accDeviceResult', err.message, false); }
+  });
   $('pwForm').addEventListener('submit', async (e) => {
     e.preventDefault(); const f = e.target;
     if (f.next.value !== f.confirm.value) { setResult('pwResult', 'รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน', false); return; }
@@ -669,6 +698,7 @@
         </table></div>
         ${(sec.notes || []).map((n) => `<p class="adm-report-note">${esc(n)}</p>`).join('')}
       </section>`).join('');
+    // the report is a print document: its numbers do not animate
   }
 
   function stamp() { const d = new Date(), p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
@@ -1057,7 +1087,7 @@
     const r = await call('residueListServer', input);
     res.list = r.records;
     const t = r.totals;
-    $('recsSum').innerHTML = recsSummary(t, r.records, r.truncated);
+    $('recsSum').innerHTML = recsSummary(t, r.records, r.truncated); countUp($('recsSum'));
     $('recsList').innerHTML = r.records.map((x) => `<article class="adm-rec-card">
         <header><b>${fmt(x.area, 2)} ไร่</b><span>${esc(x.method)}${x.methodOther ? ': ' + esc(x.methodOther) : ''}</span><span class="adm-badge">${esc(x.cropName)}</span></header>
         <p>${esc(x.date)} · ต.${esc(x.subdistrictName)} อ.${esc(x.districtName)}</p>
@@ -1331,7 +1361,14 @@
     const ph = document.getElementById('staffPhone');
     if (ph && window.ABM_SSO && window.ABM_SSO.warm) ['focus', 'pointerdown'].forEach((ev) => ph.addEventListener(ev, () => window.ABM_SSO.warm(), { passive: true }));
   }
-  if (!state.token && window.ABM_STAFF.ssoAuto) {
+  if (!state.token && window.ABM_STAFF.hasDevice()) {
+    // 1.7.0: remembered device → one call opens the officer pages; if the key is refused, fall back to the usual sign-in
+    $('viewLogin').classList.add('is-resuming');
+    window.ABM_STAFF.resume()
+      .then((r) => { if (r && r.token) { state.token = r.token; return enterApp(r); } })
+      .catch((err) => { $('staffLoginError').textContent = /DEVICE_EXPIRED/.test(err.message) ? 'การจดจำเครื่องหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง' : err.message.replace(/^DEVICE_EXPIRED:\s*/, ''); })
+      .finally(() => $('viewLogin').classList.remove('is-resuming'));
+  } else if (!state.token && window.ABM_STAFF.ssoAuto) {
     // 2.4.0: already signed in on Agri-Risk Map / Smart Agri / GGH on this device → open the officer pages directly
     window.ABM_STAFF.ssoAuto().then((r) => { if (r && r.token) { state.token = r.token; enterApp(r); } });
   }

@@ -15,7 +15,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/dashboard.css?v=1.6.0">
+  <link rel="stylesheet" href="assets/dashboard.css?v=1.7.0">
 
   <style>
     * { box-sizing: border-box; }
@@ -212,7 +212,7 @@
         <header class="ggh-dialog-head is-staff">
           <div>
             <p class="ggh-dialog-kicker">สำหรับเจ้าหน้าที่</p>
-            <h2 id="staffAuthTitle">บันทึกข้อมูล สรุปผล และออกรายงาน</h2>
+            <h2 id="staffAuthTitle">บันทึกข้อมูล สรุปผล และพิมพ์รายงาน</h2>
           </div>
           <button type="button" class="ggh-dialog-close" data-close aria-label="ปิดหน้าต่าง">✕</button>
         </header>
@@ -223,6 +223,7 @@
         <form class="ggh-dpanel" id="staffPanelLogin" data-staffpanel="login" role="tabpanel" aria-labelledby="staffTabLogin" novalidate>
           <label class="label-text" for="staffPhone">หมายเลขโทรศัพท์ที่ลงทะเบียนไว้</label>
           <input type="tel" id="staffPhone" name="phone" class="input-field text-lg tracking-widest text-center font-bold" placeholder="08XXXXXXXX" maxlength="12" inputmode="numeric" autocomplete="tel">
+          <label class="ggh-remember"><input type="checkbox" name="remember" id="staffRememberHome" checked> จดจำเครื่องนี้ 30 วัน <span>(เอาเครื่องหมายออกถ้าเป็นเครื่องที่ใช้ร่วมกัน)</span></label>
           <div class="ggh-dmsg" id="staffLoginMsg" role="alert"></div>
           <p class="ggh-dmuted">ใช้หมายเลขเดียวกับบัญชีเจ้าหน้าที่ใน Agri-Risk Map หรือ Smart Agri ได้ (ตัวตนกลาง)</p>
           <button type="submit" class="ggh-dbtn" id="staffLoginBtn">เข้าสู่ระบบ</button>
@@ -267,11 +268,11 @@
     </div>
   </footer>
 
-  <script src="assets/config.js?v=1.6.0"></script>
+  <script src="assets/config.js?v=1.7.0"></script>
   <script src="https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js"></script>
-  <script src="assets/sso-client.js?v=1.6.0"></script>
-  <script src="assets/staff-auth.js?v=1.6.0"></script>
-  <script src="assets/dashboard.js?v=1.6.0" defer></script>
+  <script src="assets/sso-client.js?v=1.7.0"></script>
+  <script src="assets/staff-auth.js?v=1.7.0"></script>
+  <script src="assets/dashboard.js?v=1.7.0" defer></script>
   <script>
     /* ABM 1.0.0 — homepage: executive dashboard (dashboard.js) + officer sign-in popup (unchanged from Green Gain Hub 2.4.2).
        Farmers and buyers use Green Gain Hub; the market link comes from ABM_CONFIG.GGH_URL. */
@@ -322,7 +323,8 @@
     function openStaff(tab, phone, opener) {
       if (window.ABM_SSO) window.ABM_SSO.warm();
       // An officer who is still signed in goes straight to the officer pages.
-      if (!phone && window.ABM_STAFF && window.ABM_STAFF.hasSession()) { location.href = 'admin.html'; return; }
+      // 1.7.0: a remembered device opens the officer pages without the popup (admin.html resumes in one call)
+      if (!phone && window.ABM_STAFF && (window.ABM_STAFF.hasSession() || window.ABM_STAFF.hasDevice())) { location.href = 'admin.html'; return; }
       const dlg = openDialog('staffAuth', opener);
       if (phone) document.getElementById('staffPhone').value = phone;
       setMsg('staffLoginMsg', ''); setMsg('staffRegMsg', '');
@@ -349,7 +351,7 @@
       e.preventDefault();
       const btn = document.getElementById('staffLoginBtn'), phone = window.ABM_STAFF.digits(e.target.phone.value);
       btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ…'; setMsg('staffLoginMsg', '');
-      try { await window.ABM_STAFF.login(phone); location.href = 'admin.html'; }
+      try { await window.ABM_STAFF.login(phone, { remember: e.target.remember.checked }); location.href = 'admin.html'; }
       catch (err) {
         const msg = String(err.message || '');
         if (/^MARKET_ACCOUNT:/.test(msg)) {

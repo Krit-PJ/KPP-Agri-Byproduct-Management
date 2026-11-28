@@ -36,8 +36,11 @@ const ADMIN_METHODS = {
   adminLoginServer: { role: null, fn: function (a) { return adminLoginServer(a[0]); } },
   staffMetaServer: { role: null, fn: function () { return staffMeta_(); } },
   staffRegisterServer: { role: null, fn: function (a) { return staffRegister_(a[0]); } },
-  staffLoginServer: { role: null, fn: function (a) { return staffLogin_(a[0]); } },
-  ssoStaffLoginServer: { role: null, fn: function (a) { return ssoStaffLogin_(a[0]); } },
+  staffLoginServer: { role: null, fn: function (a) { return deviceAttach_(staffLogin_(a[0]), a[0]); } },
+  ssoStaffLoginServer: { role: null, fn: function (a) { return deviceAttach_(ssoStaffLogin_(a[0]), a[0]); } },
+  // 1.7.0 remembered device (30 days): one call to open the officer pages again, no SSO round trip
+  deviceResumeServer: { role: null, fn: function (a) { return deviceResume_(a[0]); } },
+  deviceForgetAllServer: { role: 'admin', fn: function (a, s) { return deviceForgetAll_(s); } },
   ssoProvisionServer: { role: null, fn: function (a) { return ssoProvisionServer(a[0]); } },
   adminLogoutServer: { role: 'admin', fn: function (a, s, t) { return adminLogoutServer(t); } },
   adminMeServer: { role: 'admin', fn: function (a, s) { return adminMeServer(s); } },
@@ -466,4 +469,54 @@ function adminLogList_() {
   return rows.slice(-200).reverse().map(function (r) {
     return { time: dateTime_(r[0]), username: text_(r[1]), name: text_(r[2]), role: text_(r[3]), action: text_(r[4]), detail: text_(r[5]) };
   });
+}
+
+
+/* ---------------- 1.7.0 remembered device (officers) ----------------
+   Signing in through the central identity takes three Apps Script calls in a row (Agri-Risk id_login → ABM → Agri-Risk id_redeem).
+   After that first sign-in, an officer who ticks "จดจำเครื่องนี้" gets a device key: "v1|username|expiry|version|HMAC-SHA256",
+   signed with a secret kept only in Script Properties (ABM_DEVICE_SECRET, created on first use, never sent out).
+   Opening the officer pages again is then one call (deviceResumeServer) that checks the signature and expiry and reads the
+   account row, so a suspended or deleted account is refused at once. "ออกจากระบบทุกเครื่อง" raises the account's version
+   (Script Property devv:<username>), which voids every key issued before. No personal data is copied from the central identity.
+   Officer accounts (role admin) only; Mini Super Admin / Super Admin keep username + password every time. */
+const DEVICE_DAYS = 30;
+function deviceSecret_() {
+  const p = PropertiesService.getScriptProperties();
+  let k = p.getProperty('ABM_DEVICE_SECRET');
+  if (!k || k.length < 32) { k = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, ''); p.setProperty('ABM_DEVICE_SECRET', k); }
+  return k;
+}
+function deviceVersion_(username) { return Number(PropertiesService.getScriptProperties().getProperty('devv:' + username) || 0); }
+function deviceSign_(body) { return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(body, deviceSecret_())).replace(/=+$/, ''); }
+function deviceIssue_(username) {
+  const body = ['v1', username, Date.now() + DEVICE_DAYS * 86400000, deviceVersion_(username)].join('|');
+  return body + '|' + deviceSign_(body);
+}
+/** Adds a device key to a successful officer sign-in when the person asked to be remembered. */
+function deviceAttach_(result, input) {
+  if (!result || !result.token || !(input && input.remember) || result.role !== 'admin') return result;
+  return Object.assign({}, result, { device: deviceIssue_(result.username), deviceDays: DEVICE_DAYS });
+}
+function deviceResume_(input) {
+  const key = String(input && input.device || '');
+  const parts = key.split('|');
+  const fail = function () { throw new Error('DEVICE_EXPIRED: กรุณาเข้าสู่ระบบอีกครั้ง'); };
+  if (parts.length !== 5 || parts[0] !== 'v1') fail();
+  const body = parts.slice(0, 4).join('|');
+  if (deviceSign_(body) !== parts[4]) fail();
+  if (!(Number(parts[2]) > Date.now())) fail();
+  const username = normalizeUsername_(parts[1]);
+  if (Number(parts[3]) !== deviceVersion_(username)) fail();
+  const a = adminRecord_(username);
+  if (!a || a.role !== 'admin') fail();
+  if (a.status === 'pending') throw new Error(STAFF_PENDING_MSG);
+  if (a.status !== 'active') throw new Error('บัญชีนี้ถูกระงับ กรุณาติดต่อผู้ดูแลระบบ');
+  return adminIssueSession_(a, 'login', 'เข้าใช้จากเครื่องที่จดจำไว้');
+}
+function deviceForgetAll_(s) {
+  const p = PropertiesService.getScriptProperties();
+  p.setProperty('devv:' + s.username, String(deviceVersion_(s.username) + 1));
+  adminAudit_(s, 'device_forget_all', 'ออกจากระบบทุกเครื่องที่จดจำไว้');
+  return { status: 'success', message: 'ออกจากระบบทุกเครื่องแล้ว เครื่องอื่นต้องเข้าสู่ระบบใหม่' };
 }

@@ -8,8 +8,8 @@
   <title>สำหรับเจ้าหน้าที่ · ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร กำแพงเพชร</title>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/dashboard.css?v=1.6.0">
-  <link rel="stylesheet" href="assets/admin.css?v=1.6.0">
+  <link rel="stylesheet" href="assets/dashboard.css?v=1.7.0">
+  <link rel="stylesheet" href="assets/admin.css?v=1.7.0">
 </head>
 <body class="adm">
   <!-- 1.5.0: the same top bar as the homepage; "หน้าหลัก" always leads back to the dashboard. -->
@@ -41,7 +41,8 @@
     <!-- Login -->
     <section class="adm-login" id="viewLogin" aria-labelledby="loginTitle">
       <h1 id="loginTitle">สำหรับเจ้าหน้าที่</h1>
-      <p class="adm-muted">บันทึกการจัดการวัสดุเหลือใช้ทางการเกษตร ดูภาพรวม และออกรายงาน เกษตรกรและผู้รับซื้อ <a href="https://krit-pj.github.io/Green_Gain_Hub-KPP/">ใช้ Green Gain Hub</a></p>
+      <p class="adm-resuming" role="status"><span class="adm-spin" aria-hidden="true"></span> กำลังเปิดจากเครื่องที่จดจำไว้…</p>
+      <p class="adm-muted">บันทึกวัสดุเหลือใช้ทางการเกษตร สรุปผลการส่งเสริม และพิมพ์รายงาน เกษตรกรและผู้รับซื้อ <a href="https://krit-pj.github.io/Green_Gain_Hub-KPP/">ใช้ Green Gain Hub</a></p>
       <div class="adm-login-tabs" role="tablist" aria-label="วิธีเข้าใช้งาน">
         <button type="button" role="tab" id="ltab-phone" aria-selected="true" aria-controls="staffLoginForm" data-ltab="phone">เข้าสู่ระบบ</button>
         <button type="button" role="tab" id="ltab-register" aria-selected="false" aria-controls="staffRegForm" data-ltab="register">ลงทะเบียนใหม่</button>
@@ -50,6 +51,7 @@
       <form id="staffLoginForm" data-lpanel="phone" novalidate>
         <label for="staffPhone">หมายเลขโทรศัพท์ที่ลงทะเบียนไว้</label>
         <input id="staffPhone" type="tel" inputmode="numeric" maxlength="12" autocomplete="tel" placeholder="08XXXXXXXX" required>
+        <label class="adm-check adm-remember"><input type="checkbox" id="staffRemember" checked> จดจำเครื่องนี้ 30 วัน <span class="adm-muted">(ไม่ต้องกรอกเบอร์อีก · เอาเครื่องหมายออกถ้าเป็นเครื่องที่ใช้ร่วมกัน)</span></label>
         <p class="adm-error" id="staffLoginError" role="alert"></p>
         <button type="submit" class="adm-btn adm-btn-primary" id="staffLoginBtn">เข้าสู่ระบบ</button>
         <p class="adm-muted adm-center">ยังไม่มีบัญชี? <button type="button" class="adm-linkbtn" data-goto="register">ลงทะเบียนเจ้าหน้าที่</button></p>
@@ -368,7 +370,7 @@
 
         <section class="adm-view hidden" data-panel="reports" aria-labelledby="repTitle">
           <div class="adm-report-form">
-            <h2 id="repTitle">ออกรายงาน</h2>
+            <h2 id="repTitle">พิมพ์รายงาน</h2>
             <p class="adm-muted">เลือกแบบรายงาน กดสร้างรายงาน แล้วพิมพ์ บันทึกเป็น PDF หรือดาวน์โหลด Excel/CSV ทุกครั้งที่ดูหรือส่งออกจะบันทึกในประวัติการใช้งาน</p>
             <form class="adm-form adm-form-wide" id="reportForm">
               <fieldset class="adm-rec-set">
@@ -484,6 +486,12 @@
             <button type="submit" class="adm-btn adm-btn-primary">เปลี่ยนรหัสผ่าน</button>
             <p class="adm-result" id="pwResult" role="status"></p>
           </form>
+          <div class="adm-card adm-devices" id="accDevices">
+            <h3>เครื่องที่จดจำไว้</h3>
+            <p class="adm-muted" id="accDeviceText"></p>
+            <button type="button" class="adm-btn adm-btn-danger" id="accForgetAll">ออกจากระบบทุกเครื่อง</button>
+            <p class="adm-result" id="accDeviceResult" role="status"></p>
+          </div>
         </section>
       </div>
     </div>
@@ -492,11 +500,11 @@
   <div class="adm-toast" id="toast" role="status" hidden></div>
   <dialog class="adm-dialog" id="photoDialog" aria-label="ภาพถ่าย"><div class="adm-dialog-body" id="photoBody"></div><form method="dialog"><button class="adm-btn">ปิด</button></form></dialog>
 
-  <script src="assets/config.js?v=1.6.0"></script>
-  <script src="assets/crop-import.js?v=1.6.0"></script>
+  <script src="assets/config.js?v=1.7.0"></script>
+  <script src="assets/crop-import.js?v=1.7.0"></script>
   <script src="https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js"></script>
-  <script src="assets/sso-client.js?v=1.6.0"></script>
-  <script src="assets/staff-auth.js?v=1.6.0"></script>
-  <script src="assets/admin.js?v=1.6.0"></script>
+  <script src="assets/sso-client.js?v=1.7.0"></script>
+  <script src="assets/staff-auth.js?v=1.7.0"></script>
+  <script src="assets/admin.js?v=1.7.0"></script>
 </body>
 </html>
