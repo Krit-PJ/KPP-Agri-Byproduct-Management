@@ -8,8 +8,8 @@
   <title>สำหรับเจ้าหน้าที่ · ระบบติดตามการใช้ประโยชน์วัสดุเหลือใช้ทางการเกษตร กำแพงเพชร</title>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/dashboard.css?v=1.7.0">
-  <link rel="stylesheet" href="assets/admin.css?v=1.7.0">
+  <link rel="stylesheet" href="assets/dashboard.css?v=1.8.0">
+  <link rel="stylesheet" href="assets/admin.css?v=1.8.0">
 </head>
 <body class="adm">
   <!-- 1.5.0: the same top bar as the homepage; "หน้าหลัก" always leads back to the dashboard. -->
@@ -214,25 +214,91 @@
           <div class="adm-recs" id="recsList"></div>
         </section>
 
-        <!-- GHG parameters (Mini Super Admin / Super Admin) -->
+        <!-- Formula values: biomass and GHG (Mini Super Admin / Super Admin) — 1.8.0: biomass = อัตราชีวมวลต่อผลผลิต × ผลผลิตเฉลี่ย,
+             GHG from the same biomass, import from Excel (preview first), every change kept in history and restorable. -->
         <section class="adm-view hidden" data-panel="ghg" aria-labelledby="ghgTitle">
-          <h2 id="ghgTitle">ราคาและค่าคำนวณก๊าซเรือนกระจก</h2>
-          <form class="adm-form adm-form-wide adm-price" id="priceForm" autocomplete="off">
-            <h3>ราคากลางวัสดุเหลือใช้ทางการเกษตร</h3>
-            <p class="adm-muted">ตั้งครั้งเดียว ใช้กับทุกชนิดพืชที่เลือก "ใช้ราคากลาง" มูลค่าทุกรายการและหน้าแรกเปลี่ยนตามทันที พืชที่ต้องการราคาเฉพาะ แก้ได้ในตารางค่าตามชนิดพืชด้านล่าง</p>
-            <div class="adm-rec-grid">
-              <label>ราคากลาง (บาท/กก.)<input name="price" type="number" step="any" min="0.01" max="100" required></label>
-              <label class="adm-span2">แหล่งที่มาของราคา<input name="reference" maxlength="200" required></label>
+          <div class="adm-head">
+            <div>
+              <h2 id="ghgTitle">สูตรคำนวณชีวมวลและก๊าซเรือนกระจก</h2>
+              <p class="adm-muted" id="ghgVersionLine"></p>
             </div>
-            <p class="adm-muted" id="priceStatus"></p>
-            <div class="adm-confirm"><button type="submit" class="adm-btn adm-btn-primary">บันทึกราคากลาง</button></div>
-            <p class="adm-result" id="priceResult" role="status"></p>
+            <div class="adm-ghg-tools">
+              <button type="button" class="adm-btn adm-btn-primary" id="ghgImportBtn"><i class="fa-solid fa-file-import" aria-hidden="true"></i> นำเข้าค่าชีวมวลจาก Excel</button>
+              <button type="button" class="adm-btn" id="ghgExportBtn"><i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i> ดาวน์โหลดค่าปัจจุบัน</button>
+              <input type="file" id="ghgImportFile" accept=".xlsx,.xls,.csv" hidden>
+            </div>
+          </div>
+          <div class="adm-import-panel hidden" id="ghgImportPanel" aria-live="polite"></div>
+
+          <section class="adm-formula" aria-labelledby="ghgFormulaTitle">
+            <div class="adm-formula-head">
+              <h3 id="ghgFormulaTitle">สูตรที่ใช้อยู่ พร้อมตัวอย่างคำนวณ</h3>
+              <div class="adm-formula-pick">
+                <div class="ggh-pills" id="ghgExampleCrops" role="radiogroup" aria-label="ชนิดพืชในตัวอย่าง"></div>
+                <label class="adm-inline">พื้นที่<span class="adm-unit-input"><input type="number" id="ghgExampleArea" min="0" step="any" value="100" inputmode="decimal"><span>ไร่</span></span></label>
+              </div>
+            </div>
+            <ol class="adm-formula-steps" id="ghgFormula"></ol>
+            <p class="adm-muted adm-formula-note" id="ghgFormulaNote"></p>
+          </section>
+
+          <h3>ชีวมวลและค่าตามชนิดพืช</h3>
+          <div class="adm-table-wrap"><table class="adm-table adm-ghg-table"><thead><tr><th>พืช</th><th>วิธีคิดชีวมวล</th><th class="num">ชีวมวล<br>(ตัน/ไร่)</th><th class="num">สัดส่วน<br>น้ำหนักแห้ง</th><th class="num">Cf</th><th class="num">ต่อ 100 ไร่<br>ชีวมวล (ตัน)</th><th class="num">ต่อ 100 ไร่<br>ก๊าซเรือนกระจก</th><th class="num">ราคา<br>(บาท/กก.)</th><th class="num">นำออกได้<br>(%)</th><th>แหล่งอ้างอิง</th><th>สถานะ</th><th><span class="sr-only">จัดการ</span></th></tr></thead><tbody id="ghgCropsBody"></tbody></table></div>
+          <form class="adm-form adm-form-wide hidden" id="ghgCropForm" autocomplete="off">
+            <h3 id="ghgCropTitle">เพิ่มหรือแก้ไขค่าพืช</h3>
+            <div class="adm-rec-grid">
+              <label>รหัส (a–z)<input name="key" maxlength="24" required placeholder="เช่น cassava"></label>
+              <label>ชื่อพืช<input name="name" maxlength="60" required></label>
+              <label>ชื่อวัสดุเหลือใช้ทางการเกษตร<input name="residueName" maxlength="80"></label>
+            </div>
+            <fieldset class="adm-rec-set adm-biomass-set">
+              <legend>ชีวมวลต่อไร่</legend>
+              <div class="ggh-pills" role="radiogroup" aria-label="วิธีคิดชีวมวล">
+                <label class="ggh-pill adm-radio-pill"><input type="radio" name="biomassMethod" value="rpr" checked> อัตราชีวมวลต่อผลผลิต × ผลผลิตเฉลี่ย</label>
+                <label class="ggh-pill adm-radio-pill"><input type="radio" name="biomassMethod" value="fixed"> กำหนดเป็นตัน/ไร่</label>
+              </div>
+              <div class="adm-rec-grid" data-biomass="rpr">
+                <label>อัตราชีวมวลต่อผลผลิต<span class="adm-unit-input"><input name="rpr" type="number" step="any" min="0" inputmode="decimal"><span>ตัน/ตันผลผลิต</span></span></label>
+                <label>ผลผลิตเฉลี่ย<span class="adm-unit-input"><input name="yieldTRai" type="number" step="any" min="0" inputmode="decimal"><span>ตัน/ไร่</span></span></label>
+              </div>
+              <div class="adm-rec-grid hidden" data-biomass="fixed">
+                <label>ชีวมวล<span class="adm-unit-input"><input name="residueTRai" type="number" step="any" min="0" inputmode="decimal"><span>ตัน/ไร่</span></span></label>
+              </div>
+              <div class="adm-rec-grid">
+                <label>สัดส่วนน้ำหนักแห้ง (0–1)<input name="dmf" type="number" step="any" min="0.01" max="1" value="1" inputmode="decimal"></label>
+                <label>สัดส่วนที่ถูกเผาไหม้ Cf (0–1)<input name="cf" type="number" step="any" min="0" max="1" inputmode="decimal"></label>
+              </div>
+              <p class="adm-biomass-live" id="ghgCropLive" aria-live="polite"></p>
+              <label>แหล่งอ้างอิงชีวมวล<input name="residueReference" maxlength="200" placeholder="เช่น สกว. เอกสารเป้าหมายปีงบประมาณ 2570"></label>
+            </fieldset>
+            <details class="adm-rec-more">
+              <summary>ค่าอื่นของพืชนี้ (ค่ามาตรฐาน IPCC ราคา สัดส่วนที่นำออกได้ ลำดับ)</summary>
+              <div class="adm-rec-grid">
+                <label>Biomass consumed IPCC (ตัน/เฮกตาร์)<input name="consumedTHa" type="number" step="any" min="0"></label>
+                <label>ลำดับ<input name="sortOrder" type="number" min="1" max="99" value="10"></label>
+                <label>สัดส่วนที่นำออกจากแปลงได้ (%)<input name="removablePct" type="number" step="any" min="0" max="100"></label>
+              </div>
+              <label>แหล่งอ้างอิงค่ามาตรฐาน IPCC / Cf<input name="reference" maxlength="200"></label>
+              <label>แหล่งอ้างอิงสัดส่วนที่นำออกได้<input name="removableReference" maxlength="200"></label>
+              <fieldset class="adm-rec-set">
+                <legend>ราคา</legend>
+                <label class="adm-check"><input name="useGlobalPrice" type="checkbox" checked> ใช้ราคากลาง</label>
+                <div class="adm-rec-grid" id="ghgOwnPrice">
+                  <label>ราคาเฉพาะพืช (บาท/กก.)<input name="priceBahtKg" type="number" step="any" min="0"></label>
+                  <label class="adm-span2">แหล่งที่มาของราคาเฉพาะพืช<input name="priceReference" maxlength="200"></label>
+                </div>
+              </fieldset>
+            </details>
+            <label class="adm-check"><input name="active" type="checkbox" checked> เปิดให้เลือกตอนบันทึก</label>
+            <div class="adm-confirm"><button type="submit" class="adm-btn adm-btn-primary">บันทึกค่าพืช</button><button type="button" class="adm-btn" id="ghgCropReset">ปิด</button></div>
           </form>
-          <h3>ค่าคำนวณก๊าซเรือนกระจก</h3>
-          <p class="adm-muted">สูตรตาม IPCC 2006 Equation 2.27 ค่าคงที่แก้ไขได้ ทุกครั้งที่แก้จะเป็นชุดค่าใหม่ บันทึกในประวัติการใช้งาน และผลคำนวณทั้งหมดใช้ชุดค่าเดียวกันเสมอ (ไม่ผสมค่า AR5 กับ AR6)</p>
-          <div class="adm-card" id="ghgStatus"></div>
+          <p><button type="button" class="adm-btn" id="ghgCropAdd"><i class="fa-solid fa-plus" aria-hidden="true"></i> เพิ่มชนิดพืช</button></p>
+
+          <details class="adm-recstep adm-ghg-const">
+            <summary><b>ค่าคงที่ของก๊าซเรือนกระจก</b> <span class="adm-muted">EF, GWP, ฐานการคำนวณ</span></summary>
+            <div class="adm-card" id="ghgStatus"></div>
           <form class="adm-form adm-form-wide" id="ghgForm" autocomplete="off">
-            <h3>ค่าคงที่</h3>
+            <h3>ค่าคงที่ของก๊าซเรือนกระจก</h3>
             <div class="adm-rec-grid">
               <label>ชุดค่า GWP<select name="GWP_SET"><option value="AR5">IPCC AR5 (28 / 265)</option><option value="AR6">IPCC AR6 (27 / 273)</option><option value="AR4">IPCC AR4 (25 / 298)</option><option value="CUSTOM">กำหนดเอง</option></select></label>
               <label>GWP_CH4<input name="GWP_CH4" type="number" step="any" min="0"></label>
@@ -244,42 +310,34 @@
             <label>แหล่งอ้างอิง EF<input name="REF_EF" maxlength="200"></label>
             <label>แหล่งอ้างอิง GWP<input name="REF_GWP" maxlength="200"></label>
             <fieldset class="adm-rec-set">
-              <legend>โหมดคำนวณเริ่มต้น (รายการที่ไม่ได้กรอกชีวมวลจริง)</legend>
-              <label class="adm-check"><input type="radio" name="DEFAULT_MODE" value="standard"> Standard: ชีวมวลที่เผาไหม้ตาม IPCC Table 2.4 (ไม่คูณ Cf ซ้ำ)</label>
-              <label class="adm-check"><input type="radio" name="DEFAULT_MODE" value="residue"> Residue: วัสดุเหลือใช้ทางการเกษตรต่อไร่ (ข้อมูลในประเทศ) × Cf</label>
+              <legend>ก๊าซเรือนกระจกคิดจาก (รายการที่ไม่ได้กรอกผลชั่งน้ำหนักจริง)</legend>
+              <label class="adm-check"><input type="radio" name="DEFAULT_MODE" value="standard"> ค่ามาตรฐาน IPCC Table 2.4 (ชีวมวลที่เผาไหม้ต่อเฮกตาร์ ไม่คูณ Cf ซ้ำ)</label>
+              <label class="adm-check"><input type="radio" name="DEFAULT_MODE" value="residue"> ชีวมวลต่อไร่ของระบบ (ข้อมูลในประเทศ เช่น สกว.) × สัดส่วนน้ำหนักแห้ง × Cf <b>แนะนำ</b>: ตัวเลขชีวมวลและก๊าซเรือนกระจกมาจากฐานเดียวกัน</label>
             </fieldset>
             <div class="adm-confirm"><button type="submit" class="adm-btn adm-btn-primary">บันทึกค่าคงที่</button><button type="button" class="adm-btn" id="ghgValidateBtn">ทดสอบสูตร (Validation Test)</button></div>
             <p class="adm-result" id="ghgResult" role="status"></p>
             <div id="ghgValidation"></div>
           </form>
-          <h3>ค่าตามชนิดพืช</h3>
-          <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>พืช</th><th class="num">Biomass consumed<br>(kg/ไร่)</th><th class="num">Cf</th><th class="num">วัสดุเหลือใช้ทางการเกษตร<br>(ตัน/ไร่)</th><th class="num">ต่อ 100 ไร่ Standard<br>(ตันคาร์บอนไดออกไซด์เทียบเท่า)</th><th class="num">ต่อ 100 ไร่ Residue<br>(ตันคาร์บอนไดออกไซด์เทียบเท่า)</th><th class="num">ราคา<br>(บาท/กก.)</th><th class="num">นำออกได้<br>(%)</th><th>แหล่งอ้างอิง</th><th>สถานะ</th><th><span class="sr-only">จัดการ</span></th></tr></thead><tbody id="ghgCropsBody"></tbody></table></div>
-          <form class="adm-form adm-form-wide" id="ghgCropForm" autocomplete="off">
-            <h3 id="ghgCropTitle">เพิ่มหรือแก้ไขค่าพืช</h3>
+          </details>
+
+          <form class="adm-form adm-form-wide adm-price" id="priceForm" autocomplete="off">
+            <h3>ราคากลางวัสดุเหลือใช้ทางการเกษตร</h3>
+            <p class="adm-muted">ตั้งครั้งเดียว ใช้กับทุกชนิดพืชที่เลือก "ใช้ราคากลาง" มูลค่าทุกรายการและหน้าแรกเปลี่ยนตามทันที พืชที่ต้องการราคาเฉพาะ แก้ได้ในตารางค่าตามชนิดพืชด้านล่าง</p>
             <div class="adm-rec-grid">
-              <label>รหัส (a–z)<input name="key" maxlength="24" required placeholder="เช่น cassava"></label>
-              <label>ชื่อพืช<input name="name" maxlength="60" required></label>
-              <label>Biomass consumed (ตัน/เฮกตาร์)<input name="consumedTHa" type="number" step="any" min="0"></label>
-              <label>Combustion Factor (0–1)<input name="cf" type="number" step="any" min="0" max="1"></label>
-              <label>ชื่อวัสดุเหลือใช้ทางการเกษตร<input name="residueName" maxlength="80"></label>
-              <label>วัสดุเหลือใช้ทางการเกษตร (ตัน/ไร่)<input name="residueTRai" type="number" step="any" min="0"></label>
-              <label>ลำดับ<input name="sortOrder" type="number" min="1" max="99" value="10"></label>
-              <label>สัดส่วนที่นำออกจากแปลงได้ (%)<input name="removablePct" type="number" step="any" min="0" max="100"></label>
+              <label>ราคากลาง (บาท/กก.)<input name="price" type="number" step="any" min="0.01" max="100" required></label>
+              <label class="adm-span2">แหล่งที่มาของราคา<input name="reference" maxlength="200" required></label>
             </div>
-            <label>แหล่งอ้างอิงสัดส่วนที่นำออกได้<input name="removableReference" maxlength="200"></label>
-            <fieldset class="adm-rec-set">
-              <legend>ราคา</legend>
-              <label class="adm-check"><input name="useGlobalPrice" type="checkbox" checked> ใช้ราคากลาง</label>
-              <div class="adm-rec-grid" id="ghgOwnPrice">
-                <label>ราคาเฉพาะพืช (บาท/กก.)<input name="priceBahtKg" type="number" step="any" min="0"></label>
-                <label class="adm-span2">แหล่งที่มาของราคาเฉพาะพืช<input name="priceReference" maxlength="200"></label>
-              </div>
-            </fieldset>
-            <label>แหล่งอ้างอิง Biomass consumed / Cf<input name="reference" maxlength="200"></label>
-            <label>แหล่งอ้างอิงวัสดุเหลือใช้ทางการเกษตรต่อไร่<input name="residueReference" maxlength="200"></label>
-            <label class="adm-check"><input name="active" type="checkbox" checked> เปิดให้เลือกตอนบันทึก</label>
-            <div class="adm-confirm"><button type="submit" class="adm-btn adm-btn-primary">บันทึกค่าพืช</button><button type="button" class="adm-btn" id="ghgCropReset">ล้างฟอร์ม</button></div>
+            <p class="adm-muted" id="priceStatus"></p>
+            <div class="adm-confirm"><button type="submit" class="adm-btn adm-btn-primary">บันทึกราคากลาง</button></div>
+            <p class="adm-result" id="priceResult" role="status"></p>
           </form>
+
+          <div class="adm-card adm-ghg-history">
+            <h3>ประวัติชุดค่า</h3>
+            <p class="adm-muted">ทุกครั้งที่แก้ค่า นำเข้า หรือย้อนกลับ ระบบเก็บค่าก่อนเปลี่ยนไว้ กดย้อนกลับเพื่อใช้ค่าชุดนั้นอีกครั้ง (ค่าปัจจุบันจะถูกเก็บไว้ก่อนเสมอ)</p>
+            <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th class="num">ลำดับ</th><th>เวลา</th><th>โดย</th><th>รายการ</th><th><span class="sr-only">ย้อนกลับ</span></th></tr></thead><tbody id="ghgHistoryBody"></tbody></table></div>
+            <p class="adm-result" id="ghgHistoryResult" role="status"></p>
+          </div>
           <div class="adm-card"><h3>ขอบเขตการคำนวณ</h3><ul class="adm-bullets" id="ghgBoundary"></ul></div>
         </section>
 
@@ -500,11 +558,11 @@
   <div class="adm-toast" id="toast" role="status" hidden></div>
   <dialog class="adm-dialog" id="photoDialog" aria-label="ภาพถ่าย"><div class="adm-dialog-body" id="photoBody"></div><form method="dialog"><button class="adm-btn">ปิด</button></form></dialog>
 
-  <script src="assets/config.js?v=1.7.0"></script>
-  <script src="assets/crop-import.js?v=1.7.0"></script>
+  <script src="assets/config.js?v=1.8.0"></script>
+  <script src="assets/crop-import.js?v=1.8.0"></script>
   <script src="https://krit-pj.github.io/TH-Agri-Risk-Maps-Burning/js/kpp-id.js"></script>
-  <script src="assets/sso-client.js?v=1.7.0"></script>
-  <script src="assets/staff-auth.js?v=1.7.0"></script>
-  <script src="assets/admin.js?v=1.7.0"></script>
+  <script src="assets/sso-client.js?v=1.8.0"></script>
+  <script src="assets/staff-auth.js?v=1.8.0"></script>
+  <script src="assets/admin.js?v=1.8.0"></script>
 </body>
 </html>

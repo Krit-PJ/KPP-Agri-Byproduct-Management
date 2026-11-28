@@ -25,7 +25,7 @@
   // 2.2.0 menus by task: Admin 4 items; Mini Super Admin / Super Admin 5 groups with sub-tabs.
   const UNIT = 'ตันคาร์บอนไดออกไซด์เทียบเท่า';
   const VIEW_LABEL = { overview: 'ภาพรวม', record: 'บันทึกวัสดุเหลือใช้ทางการเกษตร', records: 'สรุปผลการส่งเสริม', import: 'นำเข้าข้อมูลเพาะปลูก', history: 'ข้อมูลเพาะปลูกที่นำเข้าแล้ว',
-    reports: 'พิมพ์รายงาน', admins: 'เจ้าหน้าที่และผู้ดูแล', log: 'ประวัติการใช้งาน', targets: 'เป้าหมายและวิธีจัดการ', ghg: 'ราคาและค่าคำนวณ',
+    reports: 'พิมพ์รายงาน', admins: 'เจ้าหน้าที่และผู้ดูแล', log: 'ประวัติการใช้งาน', targets: 'เป้าหมายและวิธีจัดการ', ghg: 'สูตรคำนวณชีวมวลและก๊าซเรือนกระจก',
     crops: 'ชนิดพืชในทะเบียน', market: 'ตลาด Green Gain Hub', api: 'เชื่อมต่อระบบอื่น', account: 'บัญชีของฉัน' };
   const MENU = {
     admin: [{ key: 'record', views: ['record'] }, { key: 'records', views: ['records'] }, { key: 'reports', views: ['reports'] }, { key: 'account', views: ['account'] }],
@@ -1203,18 +1203,25 @@
       ${flags.length ? `<p class="adm-muted">${flags.map((f) => esc(FLAG_TH[f])).join(' · ')}</p>` : ''}`;
   }
 
-  /* ---------- GHG parameters ---------- */
-  const ghg = { s: null };
+  /* ---------- 1.8.0 formula values: biomass and GHG ---------- */
+  const ghg = { s: null, exCrop: '', imp: null };
+  const BIOMASS_UNIT = 'ตัน/ไร่';
   async function loadGhg() {
     ghg.s = await call('ghgSettingsServer');
     renderGhg();
   }
+  const nz = (v) => v === null || v === undefined || v === '';
+  const efOf = (p) => Number(p.EF_CH4) * Number(p.GWP_CH4) + Number(p.EF_N2O) * Number(p.GWP_N2O);
+  function biomassText(c) {
+    if (c.biomassMethod === 'rpr' && !nz(c.rpr) && !nz(c.yieldTRai)) return `${fmt(c.rpr, 3)} × ${fmt(c.yieldTRai, 3)}`;
+    return nz(c.residueTRai) ? 'กำหนดเป็นตัน/ไร่' : 'ยังไม่กำหนด';
+  }
   function renderGhg() {
     const s = ghg.s, p = s.params, f = $('ghgForm');
-    $('ghgStatus').innerHTML = `<h3>ชุดค่าที่ใช้อยู่</h3><dl class="adm-kv"><dt>ชุดค่า</dt><dd>${esc(s.label.label)}</dd>
-      <dt>เลขชุดค่า</dt><dd>${esc(p.PARAM_VERSION)} แก้ไขเมื่อ ${esc(p.UPDATED_AT || '–')} โดย ${esc(p.UPDATED_BY || '–')}</dd>
+    $('ghgVersionLine').textContent = `ชุดค่าที่ ${p.PARAM_VERSION} · แก้ไขเมื่อ ${p.UPDATED_AT || '–'} โดย ${p.UPDATED_BY || '–'}`;
+    $('ghgStatus').innerHTML = `<dl class="adm-kv"><dt>ชุดค่า</dt><dd>${esc(s.label.label)}</dd>
       <dt>EF รวม</dt><dd>(${p.EF_CH4} × ${p.GWP_CH4}) + (${p.EF_N2O} × ${p.GWP_N2O}) = <b>${fmt(s.label.combinedEf, 4)}</b> กรัมคาร์บอนไดออกไซด์เทียบเท่า ต่อ กก. ชีวมวลแห้งที่เผาไหม้</dd>
-      <dt>โหมดเริ่มต้น</dt><dd>${p.DEFAULT_MODE === 'standard' ? 'Standard (IPCC Table 2.4)' : 'Residue (วัสดุเหลือใช้ทางการเกษตรต่อไร่ × Cf)'}</dd></dl>`;
+      <dt>ก๊าซเรือนกระจกคิดจาก</dt><dd>${p.DEFAULT_MODE === 'standard' ? 'ค่ามาตรฐาน IPCC Table 2.4' : 'ชีวมวลต่อไร่ของระบบ × สัดส่วนน้ำหนักแห้ง × Cf'}</dd></dl>`;
     ['GWP_SET', 'GWP_CH4', 'GWP_N2O', 'EF_CH4', 'EF_N2O', 'HA_TO_RAI', 'REF_EF', 'REF_GWP'].forEach((k) => { f[k].value = p[k]; });
     f.querySelectorAll('[name="DEFAULT_MODE"]').forEach((r) => { r.checked = r.value === p.DEFAULT_MODE; });
     syncGwp();
@@ -1224,25 +1231,195 @@
     $('priceStatus').textContent = `ชุดราคาที่ ${pr.version || 1} แก้ไขเมื่อ ${pr.updatedAt || '–'} โดย ${pr.updatedBy || '–'} · ใช้กับ ${users.length ? users.join(', ') : 'ยังไม่มีพืชที่ใช้ราคากลาง'}`;
     $('ghgCropsBody').innerHTML = s.crops.map((c) => {
       const smp = s.sample100.find((x) => x.key === c.key) || {};
-      return `<tr><td><b>${esc(c.name)}</b><br><span class="adm-muted">${esc(c.key)} · ${esc(c.residueName || '')}</span></td>
-        <td class="num">${c.consumedKgRai === null ? '–' : fmt(c.consumedKgRai, 2)}<br><span class="adm-muted">${c.consumedTHa === '' ? '' : c.consumedTHa + ' t/ha'}</span></td>
-        <td class="num">${c.cf === '' || c.cf === null ? '–' : c.cf}</td><td class="num">${c.residueTRai === '' || c.residueTRai === null ? '–' : c.residueTRai}</td>
-        <td class="num">${smp.standard === null || smp.standard === undefined ? '–' : fmt(smp.standard, 4)}</td><td class="num">${smp.residue === null || smp.residue === undefined ? '–' : fmt(smp.residue, 4)}</td>
-        <td class="num">${c.priceBahtKg === null || c.priceBahtKg === '' ? '–' : fmt(c.priceBahtKg, 2)}<br><span class="adm-muted">${c.useGlobalPrice !== false ? 'ราคากลาง' : 'ราคาเฉพาะพืช'}</span></td>
-        <td class="num">${c.removablePct === null || c.removablePct === '' || c.removablePct === undefined ? '–' : fmt(c.removablePct, 1)}</td>
-        <td>${esc(c.reference || '–')}<br><span class="adm-muted">${esc(c.residueReference || '')}</span></td>
+      const g100 = p.DEFAULT_MODE === 'standard' ? smp.standard : smp.residue;
+      return `<tr class="${c.active ? '' : 'is-off'}"><td><b>${esc(c.name)}</b><br><span class="adm-muted">${esc(c.residueName || c.key)}</span></td>
+        <td>${c.biomassMethod === 'rpr' ? '<span class="adm-chip">อัตรา × ผลผลิต</span><br>' : ''}<span class="adm-muted">${esc(biomassText(c))}</span></td>
+        <td class="num"><b>${nz(c.residueTRai) ? '–' : fmt(c.residueTRai, 3)}</b></td>
+        <td class="num">${nz(c.dmf) ? '1' : fmt(c.dmf, 2)}</td><td class="num">${nz(c.cf) ? '–' : c.cf}</td>
+        <td class="num">${nz(smp.biomass100) ? '–' : fmt(smp.biomass100, 1)}</td>
+        <td class="num">${nz(g100) ? '–' : fmt(g100, 3)}${p.DEFAULT_MODE !== 'standard' && !nz(smp.standard) ? `<br><span class="adm-muted">IPCC ${fmt(smp.standard, 3)}</span>` : ''}</td>
+        <td class="num">${nz(c.priceBahtKg) ? '–' : fmt(c.priceBahtKg, 2)}</td>
+        <td class="num">${nz(c.removablePct) ? '–' : fmt(c.removablePct, 1)}</td>
+        <td class="adm-ref">${esc(c.residueReference || c.reference || '–')}</td>
         <td><span class="adm-badge ${c.active ? 'active' : 'disabled'}">${c.active ? 'ใช้งาน' : 'ปิด'}</span></td>
-        <td><button type="button" data-edit-crop="${esc(c.key)}">แก้ไข</button></td></tr>`;
+        <td><button type="button" class="adm-btn" data-edit-crop="${esc(c.key)}">แก้ไข</button></td></tr>`;
     }).join('');
-    $('ghgCropsBody').querySelectorAll('[data-edit-crop]').forEach((b) => b.addEventListener('click', () => {
-      const c = s.crops.find((x) => x.key === b.dataset.editCrop), cf = $('ghgCropForm');
-      ['key', 'name', 'consumedTHa', 'cf', 'residueName', 'residueTRai', 'sortOrder', 'reference', 'residueReference', 'removablePct', 'removableReference'].forEach((k) => { cf[k].value = c[k] === null || c[k] === undefined ? '' : c[k]; });
-      cf.priceBahtKg.value = c.ownPriceBahtKg === null || c.ownPriceBahtKg === undefined ? '' : c.ownPriceBahtKg; cf.priceReference.value = c.ownPriceReference || '';
-      cf.useGlobalPrice.checked = c.useGlobalPrice !== false; syncOwnPrice();
-      cf.active.checked = c.active; cf.key.readOnly = true; $('ghgCropTitle').textContent = 'แก้ไขค่าพืช ' + c.name; cf.name.focus();
-    }));
+    $('ghgCropsBody').querySelectorAll('[data-edit-crop]').forEach((b) => b.addEventListener('click', () => editCrop(b.dataset.editCrop)));
     $('ghgBoundary').innerHTML = s.boundary.map((x) => `<li>${esc(x)}</li>`).join('');
+    renderGhgHistory();
+    renderFormula();
   }
+
+  /* worked example: the formula with this crop's numbers, as each step is computed */
+  function renderFormula() {
+    const s = ghg.s, p = s.params;
+    const usable = s.crops.filter((c) => c.active && !nz(c.residueTRai));
+    if (!usable.some((c) => c.key === ghg.exCrop)) ghg.exCrop = (usable[0] || {}).key || '';
+    $('ghgExampleCrops').innerHTML = usable.map((c) => `<button type="button" class="ggh-pill" role="radio" aria-checked="${c.key === ghg.exCrop}" data-ex="${esc(c.key)}"><span class="ggh-pill-name">${esc(c.name)}</span></button>`).join('');
+    $('ghgExampleCrops').querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => { ghg.exCrop = b.dataset.ex; renderFormula(); }));
+    const c = usable.find((x) => x.key === ghg.exCrop), area = Math.max(0, Number($('ghgExampleArea').value) || 0), ef = efOf(p);
+    if (!c) { $('ghgFormula').innerHTML = '<li>ยังไม่มีพืชที่กำหนดชีวมวลต่อไร่</li>'; return; }
+    const per = Number(c.residueTRai), dmf = nz(c.dmf) ? 1 : Number(c.dmf), cf = nz(c.cf) ? null : Number(c.cf);
+    const tonnes = area * per, burntKg = tonnes * 1000 * dmf * (cf || 0), ghgT = burntKg * ef / 1e6;
+    const steps = [
+      [`ชีวมวลต่อไร่ (${esc(c.residueName || c.name)})`, c.biomassMethod === 'rpr' && !nz(c.rpr) ? `อัตราชีวมวลต่อผลผลิต ${fmt(c.rpr, 3)} × ผลผลิตเฉลี่ย ${fmt(c.yieldTRai, 3)} ตัน/ไร่` : 'กำหนดเป็นตัน/ไร่', `${fmt(per, 3)} ${BIOMASS_UNIT}`],
+      ['ปริมาณชีวมวลที่จัดการได้', `${fmt(area, 2)} ไร่ × ${fmt(per, 3)} ${BIOMASS_UNIT}`, `${fmt(tonnes, 2)} ตัน`]
+    ];
+    if (p.DEFAULT_MODE === 'standard') {
+      const kgRai = nz(c.consumedKgRai) ? null : Number(c.consumedKgRai);
+      steps.push(['ชีวมวลแห้งที่ถูกเผาไหม้ (IPCC Table 2.4)', kgRai === null ? 'พืชนี้ไม่มีค่ามาตรฐาน' : `${fmt(area, 2)} ไร่ × ${fmt(kgRai, 1)} กก./ไร่`, kgRai === null ? '–' : `${fmt(area * kgRai / 1000, 2)} ตัน`]);
+      steps.push(['ก๊าซเรือนกระจกที่ลดได้', kgRai === null ? '–' : `${fmt(area * kgRai, 0)} กก. × EF รวม ${fmt(ef, 2)} ÷ 1,000,000`, kgRai === null ? '–' : `<b data-count>${fmt(area * kgRai * ef / 1e6, 3)}</b> ตันคาร์บอนไดออกไซด์เทียบเท่า`]);
+    } else {
+      steps.push(['ชีวมวลแห้งที่จะถูกเผาไหม้ถ้าเผา', `${fmt(tonnes, 2)} ตัน × สัดส่วนน้ำหนักแห้ง ${fmt(dmf, 2)} × Cf ${cf === null ? '–' : fmt(cf, 2)}`, cf === null ? 'ยังไม่กำหนด Cf' : `${fmt(burntKg / 1000, 2)} ตัน`]);
+      steps.push(['ก๊าซเรือนกระจกที่ลดได้', `${fmt(burntKg, 0)} กก. × EF รวม ${fmt(ef, 2)} ÷ 1,000,000`, cf === null ? '–' : `<b data-count>${fmt(ghgT, 3)}</b> ตันคาร์บอนไดออกไซด์เทียบเท่า`]);
+    }
+    $('ghgFormula').innerHTML = steps.map(([k, how, v]) => `<li><span class="adm-formula-k">${k}</span><span class="adm-formula-how">${how}</span><span class="adm-formula-v">${v}</span></li>`).join('');
+    $('ghgFormulaNote').textContent = `EF รวม = (EF_CH₄ ${p.EF_CH4} × GWP ${p.GWP_CH4}) + (EF_N₂O ${p.EF_N2O} × GWP ${p.GWP_N2O}) กรัมคาร์บอนไดออกไซด์เทียบเท่าต่อ กก. ชีวมวลแห้ง · ${s.label.label}`;
+    countUp($('ghgFormula'));
+  }
+  $('ghgExampleArea').addEventListener('input', () => { if (ghg.s) renderFormula(); });
+
+  /* crop form: shown only while adding or editing */
+  function cropForm(open) { $('ghgCropForm').classList.toggle('hidden', !open); $('ghgCropAdd').classList.toggle('hidden', open); }
+  function editCrop(key) {
+    const c = ghg.s.crops.find((x) => x.key === key), f = $('ghgCropForm');
+    ['key', 'name', 'consumedTHa', 'cf', 'residueName', 'sortOrder', 'reference', 'residueReference', 'removablePct', 'removableReference', 'rpr', 'yieldTRai', 'dmf'].forEach((k) => { f[k].value = nz(c[k]) ? '' : c[k]; });
+    f.residueTRai.value = nz(c.fixedTRai) ? (nz(c.residueTRai) ? '' : c.residueTRai) : c.fixedTRai;
+    f.querySelectorAll('[name="biomassMethod"]').forEach((r) => { r.checked = r.value === (c.biomassMethod || 'fixed'); });
+    f.priceBahtKg.value = nz(c.ownPriceBahtKg) ? '' : c.ownPriceBahtKg; f.priceReference.value = c.ownPriceReference || '';
+    f.useGlobalPrice.checked = c.useGlobalPrice !== false; syncOwnPrice(); syncBiomass();
+    f.active.checked = c.active; f.key.readOnly = true; $('ghgCropTitle').textContent = 'แก้ไขค่าพืช ' + c.name;
+    cropForm(true); blurIn(f); f.scrollIntoView({ behavior: 'smooth', block: 'start' }); f.rpr.focus({ preventScroll: true });
+  }
+  function syncBiomass() {
+    const f = $('ghgCropForm'), m = (f.querySelector('[name="biomassMethod"]:checked') || {}).value || 'rpr';
+    f.querySelectorAll('[data-biomass]').forEach((el) => el.classList.toggle('hidden', el.dataset.biomass !== m));
+    f.querySelectorAll('.adm-radio-pill').forEach((l) => l.setAttribute('aria-checked', String(l.querySelector('input').checked)));
+    const per = m === 'rpr' ? Number(f.rpr.value) * Number(f.yieldTRai.value) : Number(f.residueTRai.value);
+    const dmf = Number(f.dmf.value) || 1, cf = Number(f.cf.value), ef = ghg.s ? efOf(ghg.s.params) : 0;
+    $('ghgCropLive').innerHTML = per > 0 ? `ชีวมวล <b>${fmt(per, 3)}</b> ตัน/ไร่ · 100 ไร่ = ${fmt(per * 100, 1)} ตัน${cf > 0 ? ` · ก๊าซเรือนกระจกที่ลดได้ ${fmt(per * 100 * 1000 * dmf * cf * ef / 1e6, 3)} ตันคาร์บอนไดออกไซด์เทียบเท่า` : ''}` : 'กรอกค่าเพื่อดูผล';
+  }
+  $('ghgCropForm').addEventListener('input', syncBiomass);
+  $('ghgCropForm').addEventListener('change', syncBiomass);
+  $('ghgCropAdd').addEventListener('click', () => { resetCropForm(); cropForm(true); $('ghgCropForm').key.focus(); });
+  $('ghgCropForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target;
+    const method = (f.querySelector('[name="biomassMethod"]:checked') || {}).value || 'fixed';
+    const input = { key: f.key.value.trim().toLowerCase(), name: f.name.value, consumedTHa: f.consumedTHa.value, cf: f.cf.value, residueName: f.residueName.value, residueTRai: f.residueTRai.value,
+      biomassMethod: method, rpr: f.rpr.value, yieldTRai: f.yieldTRai.value, dmf: f.dmf.value,
+      sortOrder: Number(f.sortOrder.value), reference: f.reference.value, residueReference: f.residueReference.value, active: f.active.checked,
+      useGlobalPrice: f.useGlobalPrice.checked, priceBahtKg: f.priceBahtKg.value, priceReference: f.priceReference.value,
+      removablePct: f.removablePct.value, removableReference: f.removableReference.value };
+    if (!window.confirm(`บันทึกค่าพืช ${input.name}? ตัวเลขชีวมวล มูลค่า และก๊าซเรือนกระจกของทุกรายการที่เป็นพืชนี้ (รวมรายการเดิม) จะคำนวณใหม่ ค่าเดิมเก็บไว้ในประวัติ`)) return;
+    try { const r = await call('ghgCropSaveServer', input); ghg.s = r.settings; renderGhg(); toast(r.message); resetCropForm(); res.meta = null; } catch (err) { toast(err.message); }
+  });
+  function resetCropForm() {
+    const f = $('ghgCropForm'); f.reset(); f.key.readOnly = false; f.active.checked = true; f.useGlobalPrice.checked = true; f.dmf.value = 1;
+    syncOwnPrice(); syncBiomass(); $('ghgCropTitle').textContent = 'เพิ่มชนิดพืช'; cropForm(false);
+  }
+
+  /* history and restore */
+  function renderGhgHistory() {
+    const h = ghg.s.history || [];
+    const label = { ghg_biomass_v180: 'ค่าก่อนปรับเป็น สกว. (ระบบ 1.8.0)', ghg_params_save: 'ก่อนแก้ค่าคงที่', ghg_crop_save: 'ก่อนแก้ค่าพืช', ghg_import: 'ก่อนนำเข้า', ghg_restore: 'ก่อนย้อนกลับ' };
+    $('ghgHistoryBody').innerHTML = h.length ? h.map((x) => `<tr><td class="num">${x.version}</td><td>${esc(x.time)}</td><td>${esc(x.by)}</td>
+      <td>${esc(label[x.action] || x.action)}<br><span class="adm-muted">${esc(x.note)}</span></td>
+      <td><button type="button" class="adm-btn" data-restore="${x.version}">ใช้ค่าชุดนี้</button></td></tr>`).join('')
+      : '<tr><td colspan="5" class="adm-muted">ยังไม่มีประวัติ</td></tr>';
+    $('ghgHistoryBody').querySelectorAll('[data-restore]').forEach((b) => b.addEventListener('click', () => {
+      const v = b.dataset.restore;
+      if (!window.confirm(`ย้อนกลับไปใช้ค่าที่เก็บไว้ลำดับที่ ${v}? ค่าปัจจุบันจะถูกเก็บไว้ในประวัติก่อน และตัวเลขทุกรายการจะคำนวณใหม่`)) return;
+      busy(b, 'กำลังย้อนกลับ…', async () => {
+        try { const r = await call('ghgRestoreServer', { version: Number(v) }); ghg.s = r.settings; renderGhg(); setResult('ghgHistoryResult', r.message, true); res.meta = null; }
+        catch (err) { setResult('ghgHistoryResult', err.message, false); }
+      });
+    }));
+  }
+
+  /* import from Excel: the province document (อัตราชีวมวลต่อผลผลิต / ผลผลิตเฉลี่ย) or this system's own download */
+  function parseBiomassSheet(aoa) {
+    const txt = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+    const numOf = (v) => { if (v === '' || v === null || v === undefined) return null; const n = Number(String(v).replace(/,/g, '')); return isFinite(n) ? n : null; };
+    let source = '';
+    aoa.forEach((r) => r.forEach((v, i) => { if (/^ที่มา/.test(txt(v)) && txt(r[i + 1])) source = txt(r[i + 1]); }));
+    const find = (r, re) => r.findIndex((v) => re.test(txt(v)));
+    for (let h = 0; h < Math.min(aoa.length, 40); h++) {
+      const r = aoa[h];
+      const iRpr = find(r, /ต่อตันผลผลิต|ต่อผลผลิต|ตัน\/ตัน/), iYield = find(r, /ผลผลิตเฉลี่ย/), iFixed = find(r, /^ชีวมวล \(ตัน\/ไร่\)|ปริมาณชีวมวล/);
+      if (iRpr < 0 && iFixed < 0) continue;
+      const iKey = find(r, /^รหัสพืช/), iName = find(r, /^ชื่อวัสดุ|^วัสดุ|^พืช$/), iDmf = find(r, /น้ำหนักแห้ง/), iCf = find(r, /^Cf|เผาไหม้/i), iRef = find(r, /อ้างอิง|^ที่มา/);
+      const iLabel = iName >= 0 ? iName : Math.max(0, (iRpr >= 0 ? iRpr : iFixed) - 1);
+      const rows = [];
+      for (let k = h + 1; k < aoa.length; k++) {
+        const x = aoa[k], label = txt(x[iLabel]), rpr = iRpr >= 0 ? numOf(x[iRpr]) : null, y = iYield >= 0 ? numOf(x[iYield]) : null, fixed = iFixed >= 0 ? numOf(x[iFixed]) : null;
+        if (!label && rpr === null && fixed === null) { if (rows.length) break; continue; }
+        if (rpr === null && fixed === null) continue;   // a crop without values (e.g. not set yet) is skipped, not the end of the table
+        rows.push({ key: iKey >= 0 ? txt(x[iKey]) : '', label, rpr, yieldTRai: y, residueTRai: rpr !== null && y !== null ? null : fixed,
+          dmf: iDmf >= 0 ? numOf(x[iDmf]) : null, cf: iCf >= 0 ? numOf(x[iCf]) : null, reference: iRef >= 0 ? txt(x[iRef]) : '' });
+      }
+      if (rows.length) return { rows, source };
+    }
+    return { rows: [], source };
+  }
+  $('ghgImportBtn').addEventListener('click', () => $('ghgImportFile').click());
+  $('ghgImportFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    const panel = $('ghgImportPanel');
+    panel.classList.remove('hidden'); panel.innerHTML = '<p class="adm-muted">กำลังอ่านไฟล์…</p>';
+    try {
+      await loadScript(SHEETJS);
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      let parsed = { rows: [], source: '' };
+      for (const n of wb.SheetNames) { parsed = parseBiomassSheet(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' })); if (parsed.rows.length) break; }
+      if (!parsed.rows.length) throw new Error('ไม่พบตารางชีวมวลในไฟล์ ต้องมีหัวคอลัมน์ "ตันชีวมวลต่อตันผลผลิต" และ "ผลผลิตเฉลี่ย ตันต่อไร่" (หรือใช้ไฟล์จากปุ่มดาวน์โหลดค่าปัจจุบัน)');
+      const reference = (parsed.source ? parsed.source + ' ' : '') + '(นำเข้าจากไฟล์ ' + file.name + ')';
+      const pv = await call('ghgImportServer', { rows: parsed.rows, reference });
+      ghg.imp = { rows: parsed.rows, reference, fileName: file.name, preview: pv };
+      renderImport();
+    } catch (err) { panel.innerHTML = `<p class="adm-result is-error">${esc(err.message)}</p>`; }
+  });
+  function renderImport() {
+    const imp = ghg.imp, pv = imp.preview, panel = $('ghgImportPanel');
+    const change = (a, b) => (nz(a) || !a ? '' : `${b >= a ? '+' : ''}${fmt((b - a) / a * 100, 0)}%`);
+    panel.innerHTML = `<h3>ตรวจค่าก่อนนำเข้า <span class="adm-muted">${esc(imp.fileName)}</span></h3>
+      <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>ในไฟล์</th><th>พืชในระบบ</th><th class="num">ค่าเดิม (ตัน/ไร่)</th><th>ค่าใหม่</th><th class="num">ชีวมวล (ตัน/ไร่)</th><th class="num">เปลี่ยน</th><th>สถานะ</th></tr></thead><tbody>
+      ${pv.rows.map((r) => `<tr class="${r.error ? 'is-off' : ''}"><td>${esc(r.label)}</td><td>${esc(r.name || '–')}</td><td class="num">${nz(r.before) ? '–' : fmt(r.before, 3)}</td>
+        <td>${r.method === 'rpr' ? `${fmt(r.rpr, 3)} × ${fmt(r.yieldTRai, 3)}` : r.method === 'fixed' ? 'กำหนดเป็นตัน/ไร่' : '–'}</td>
+        <td class="num"><b>${nz(r.residueTRai) ? '–' : fmt(r.residueTRai, 3)}</b></td><td class="num">${r.error ? '' : change(r.before, r.residueTRai)}</td>
+        <td>${r.error ? `<span class="adm-badge deleted">${esc(r.error)}</span>` : '<span class="adm-badge active">นำเข้าได้</span>'}</td></tr>`).join('')}</tbody></table></div>
+      <label>แหล่งอ้างอิงที่จะบันทึก<input id="ghgImportRef" maxlength="200" value="${esc(imp.reference)}"></label>
+      <p class="adm-muted">นำเข้าเฉพาะวิธีคิดชีวมวล (อัตรา × ผลผลิต หรือตัน/ไร่) ค่าอื่นของพืชคงเดิม ตัวเลขทุกรายการจะคำนวณใหม่ ค่าเดิมเก็บไว้ในประวัติและย้อนกลับได้</p>
+      <div class="adm-confirm"><button type="button" class="adm-btn adm-btn-primary" id="ghgImportApply" ${pv.ready ? '' : 'disabled'}>ยืนยันนำเข้า ${pv.ready} ชนิดพืช</button><button type="button" class="adm-btn" id="ghgImportCancel">ยกเลิก</button></div>
+      <p class="adm-result" id="ghgImportResult" role="status"></p>`;
+    blurIn(panel);
+    $('ghgImportCancel').addEventListener('click', () => { ghg.imp = null; panel.classList.add('hidden'); panel.innerHTML = ''; });
+    $('ghgImportApply').addEventListener('click', () => busy($('ghgImportApply'), 'กำลังนำเข้า…', async () => {
+      try {
+        const r = await call('ghgImportServer', { rows: imp.rows, reference: $('ghgImportRef').value.trim(), apply: true, fileName: imp.fileName });
+        ghg.s = r.settings; ghg.imp = null; renderGhg(); res.meta = null;
+        panel.innerHTML = `<p class="adm-result is-ok">${esc(r.message)}</p>`;
+      } catch (err) { setResult('ghgImportResult', err.message, false); }
+    }));
+  }
+  $('ghgExportBtn').addEventListener('click', () => busy($('ghgExportBtn'), 'กำลังสร้างไฟล์…', async () => {
+    try {
+      await loadScript(SHEETJS);
+      const s = ghg.s, p = s.params;
+      const head = ['รหัสพืช', 'พืช', 'ชื่อวัสดุเหลือใช้ทางการเกษตร', 'วิธีคิดชีวมวล', 'ตันชีวมวลต่อตันผลผลิต', 'ผลผลิตเฉลี่ย ตันต่อไร่', 'ชีวมวล (ตัน/ไร่)', 'สัดส่วนน้ำหนักแห้ง', 'Cf', 'แหล่งอ้างอิง'];
+      const rows = s.crops.map((c) => [c.key, c.name, c.residueName || '', c.biomassMethod === 'rpr' ? 'อัตรา × ผลผลิต' : 'ตัน/ไร่', nz(c.rpr) ? '' : c.rpr, nz(c.yieldTRai) ? '' : c.yieldTRai,
+        nz(c.residueTRai) ? '' : c.residueTRai, nz(c.dmf) ? 1 : c.dmf, nz(c.cf) ? '' : c.cf, c.residueReference || '']);
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([head].concat(rows)); ws['!cols'] = head.map((h, i) => ({ wch: i === 9 ? 60 : Math.max(10, h.length + 2) }));
+      XLSX.utils.book_append_sheet(wb, ws, 'ชีวมวล');
+      const cs = XLSX.utils.aoa_to_sheet([['ค่า', 'ค่าที่ใช้', 'หน่วย'], ['ชุดค่าที่', p.PARAM_VERSION, ''], ['ก๊าซเรือนกระจกคิดจาก', p.DEFAULT_MODE === 'standard' ? 'IPCC Table 2.4' : 'ชีวมวลของระบบ × สัดส่วนน้ำหนักแห้ง × Cf', ''],
+        ['EF_CH4', p.EF_CH4, 'g/kg'], ['EF_N2O', p.EF_N2O, 'g/kg'], ['GWP_CH4', p.GWP_CH4, ''], ['GWP_N2O', p.GWP_N2O, ''], ['ชุด GWP', p.GWP_SET, ''], ['ราคากลาง', (s.price || {}).price, 'บาท/กก.']]);
+      cs['!cols'] = [{ wch: 24 }, { wch: 48 }, { wch: 10 }];
+      XLSX.utils.book_append_sheet(wb, cs, 'ค่าคงที่');
+      XLSX.writeFile(wb, `ABM-สูตรชีวมวล-ชุดที่${p.PARAM_VERSION}.xlsx`);
+      toast('ดาวน์โหลดแล้ว แก้ค่าในไฟล์แล้วนำเข้ากลับได้');
+    } catch (err) { toast(err.message); }
+  }));
   function syncGwp() {
     const f = $('ghgForm'), set = ghg.s && ghg.s.gwpSets[f.GWP_SET.value];
     if (set) { f.GWP_CH4.value = set.GWP_CH4; f.GWP_N2O.value = set.GWP_N2O; f.REF_GWP.value = set.ref; }
@@ -1268,15 +1445,6 @@
         '</tbody></table></div>';
     } catch (err) { toast(err.message); }
   }));
-  $('ghgCropForm').addEventListener('submit', async (e) => {
-    e.preventDefault(); const f = e.target;
-    const input = { key: f.key.value.trim().toLowerCase(), name: f.name.value, consumedTHa: f.consumedTHa.value, cf: f.cf.value, residueName: f.residueName.value, residueTRai: f.residueTRai.value,
-      sortOrder: Number(f.sortOrder.value), reference: f.reference.value, residueReference: f.residueReference.value, active: f.active.checked,
-      useGlobalPrice: f.useGlobalPrice.checked, priceBahtKg: f.priceBahtKg.value, priceReference: f.priceReference.value,
-      removablePct: f.removablePct.value, removableReference: f.removableReference.value };
-    try { const r = await call('ghgCropSaveServer', input); ghg.s = r.settings; renderGhg(); toast(r.message); resetCropForm(); res.meta = null; } catch (err) { toast(err.message); }
-  });
-  function resetCropForm() { const f = $('ghgCropForm'); f.reset(); f.key.readOnly = false; f.active.checked = true; f.useGlobalPrice.checked = true; syncOwnPrice(); $('ghgCropTitle').textContent = 'เพิ่มหรือแก้ไขค่าพืช'; }
   function syncOwnPrice() {
     const f = $('ghgCropForm'), own = !f.useGlobalPrice.checked;
     $('ghgOwnPrice').classList.toggle('is-off', !own);
@@ -1293,6 +1461,7 @@
       catch (err) { setResult('priceResult', err.message, false); }
     });
   });
+
   $('ghgCropReset').addEventListener('click', resetCropForm);
 
   /* ---------- targets, management types, province ---------- */

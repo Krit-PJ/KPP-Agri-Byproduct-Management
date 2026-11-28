@@ -436,3 +436,42 @@ body.adm { background: radial-gradient(110% 80% at 0% 0%, #e2f0e5 0%, rgba(226,2
   body.adm { background: #fff; }
   .adm-view:not(.hidden) { background: #fff; border: 0; box-shadow: none; padding: 0; }
 }
+
+/* ---------- 1.8.0 สูตรคำนวณชีวมวลและก๊าซเรือนกระจก ---------- */
+.adm-ghg-tools { display: flex; flex-wrap: wrap; gap: .5rem; }
+.adm-ghg-tools .adm-btn { display: inline-flex; align-items: center; gap: .45rem; }
+.adm-formula { border-radius: 16px; padding: 1rem 1.1rem 1.1rem; background: linear-gradient(135deg, rgba(232,244,234,.9), rgba(255,255,255,.75));
+  border: 1px solid rgba(26,93,48,.14); display: grid; gap: .75rem; }
+.adm-formula-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; }
+.adm-formula-head h3 { margin: 0; font-size: 1rem; }
+.adm-formula-pick { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; }
+.adm-formula-pick .adm-unit-input input { width: 6.5rem; }
+.adm-formula-steps { list-style: none; counter-reset: fstep; display: grid; gap: .45rem; margin: 0; padding: 0; }
+.adm-formula-steps li { counter-increment: fstep; display: grid; grid-template-columns: 1.8rem minmax(10rem, 15rem) minmax(0, 1fr) auto; gap: .4rem .8rem; align-items: center;
+  background: rgba(255,255,255,.85); border: 1px solid rgba(26,93,48,.1); border-radius: 12px; padding: .55rem .8rem; }
+.adm-formula-steps li::before { content: counter(fstep); display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--ggh-green); color: #fff; font-weight: 700; font-size: .85rem; }
+.adm-formula-k { font-weight: 600; font-size: .92rem; }
+.adm-formula-how { color: var(--ggh-muted); font-size: .88rem; font-variant-numeric: tabular-nums; }
+.adm-formula-v { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; font-weight: 600; }
+.adm-formula-v b { font-size: 1.25rem; color: var(--ggh-green-dark); }
+.adm-formula-steps li:last-child { border-color: rgba(26,127,55,.35); background: #fff; }
+.adm-formula-note { font-size: .82rem; margin: 0; }
+@media (max-width: 767px) {
+  .adm-formula-steps li { grid-template-columns: 1.8rem minmax(0, 1fr); }
+  .adm-formula-how, .adm-formula-v { grid-column: 2; text-align: left; white-space: normal; }
+}
+.adm-ghg-table td.adm-ref { max-width: 18rem; font-size: .82rem; color: var(--ggh-muted); }
+.adm-ghg-table tr.is-off td { opacity: .55; }
+.adm-chip { display: inline-block; padding: 0 .5rem; border-radius: 999px; background: #e6f2e9; color: var(--ggh-green-dark); font-size: .75rem; font-weight: 600; }
+.adm-import-panel { border-radius: 16px; padding: 1rem 1.1rem; background: #fff; border: 2px solid var(--ggh-green); display: grid; gap: .7rem; }
+.adm-import-panel h3 { margin: 0; }
+.adm-import-panel label { display: grid; gap: .25rem; font-weight: 600; font-size: .9rem; }
+.adm-biomass-set { display: grid; gap: .7rem; }
+.adm-radio-pill { cursor: pointer; }
+.adm-radio-pill input { position: absolute; opacity: 0; pointer-events: none; }
+.adm-radio-pill[aria-checked="true"] { background: var(--ggh-green); border-color: var(--ggh-green); color: #fff; }
+.adm-radio-pill:has(input:focus-visible) { outline: 3px solid rgba(26,127,55,.35); outline-offset: 2px; }
+.adm-biomass-live { margin: 0; padding: .55rem .8rem; border-radius: 10px; background: #eef6ef; color: var(--ggh-green-dark); font-size: .9rem; }
+.adm-ghg-const > summary { cursor: pointer; padding: .2rem 0; }
+.adm-ghg-const[open] { display: grid; gap: .8rem; }
+.adm-ghg-history .adm-table td:last-child { white-space: nowrap; }

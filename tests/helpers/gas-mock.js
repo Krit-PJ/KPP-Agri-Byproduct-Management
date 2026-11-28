@@ -48,7 +48,8 @@ function load(options) {
   }, options.sheets || {});
   // ABM 1.0.0: the farmers / buyers sheets stand for Green Gain Hub's data, served by a simulated feed (UrlFetchApp below).
   // 1.2.0: ABM defaults to SSO required; most tests run the old phone path (SSO_MODE off) — sso.test.js sets required itself.
-  const props = Object.assign(options.unlinked ? {} : { GGH_FEED_KEY: 'test-feed-key' }, { SSO_MODE: 'off' }, options.props || {});
+  // 1.8.0: tests written for the fixed ตัน/ไร่ values skip the one-time switch to the สกว. values; biomass.test.js runs it (migrateBiomass: true)
+  const props = Object.assign(options.unlinked ? {} : { GGH_FEED_KEY: 'test-feed-key' }, { SSO_MODE: 'off' }, options.migrateBiomass ? {} : { GHG_BIOMASS_V180: 'skipped-in-test' }, options.props || {});
   const feed = { calls: 0, down: false, key: 'test-feed-key', posts: [], market: null };   // key = what Green Gain Hub accepts
   const cache = new Map();
   let last = null;

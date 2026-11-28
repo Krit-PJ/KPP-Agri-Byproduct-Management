@@ -26,7 +26,7 @@ assert(/PASS: Green Gain Hub feed/.test(api.setupSystem()), 'feed passes once Gr
 let threw = '';
 try { api.sheet_('farmers'); } catch (e) { threw = e.message; }
 assert(/Green Gain Hub/.test(threw), 'sheet_ refuses market sheets: ' + threw);
-assert(api.getApiInfoServer().system === 'ABM' && api.getApiInfoServer().apiVersion === '1.7.0', 'api info');
+assert(api.getApiInfoServer().system === 'ABM' && api.getApiInfoServer().apiVersion === '1.8.0', 'api info');
 
 // Officer API only; public API aggregate only
 ['loginServer', 'registerServer', 'saveDataServer', 'getMatchingDataServer', 'ssoLoginServer'].forEach((m) => assert(/Method not allowed/.test(post(m, [{}]).error), 'no market method: ' + m));
